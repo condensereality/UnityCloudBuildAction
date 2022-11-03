@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "unity-cloud-build"
+version = "1.2.0"
+description = "Custom GitHub Action for Unity Cloud Build runs"
+authors = ["Condense <hello@condense.live>"]
+
+[tool.poetry.dependencies]
+python = "3.10.*"
+requests = "^2.25.1"
+tenacity = "^6.3.1"
+click = "^7.1.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.1"
+responses = "^0.12.1"
+black = "^19.10b0"
+isort = "^4.3.21"
+pytest-mock = "^3.5.1"

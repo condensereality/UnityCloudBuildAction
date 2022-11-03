@@ -1,0 +1,37 @@
+name: 'Run Unity Cloud Build'
+author: 'Condense <hello@condense.live>'
+description: 'Runs relevant build via Unity Cloud Build'
+inputs:
+  unity_cloud_build_api_key:
+    description: 'Unity Cloud Build API key'
+    required: true
+  unity_cloud_build_org_id:
+    description: 'Unity Cloud Build Org ID'
+    required: true
+  unity_cloud_build_project_id:
+    description: 'Unity Cloud Build Project ID'
+    required: true
+  unity_cloud_build_polling_interval:
+    description: 'Interval to poll Unity Cloud Build'
+    required: false
+    default: '60'
+  unity_cloud_build_primary_target:
+    description: 'Unity Cloud Build Primary Target ID'
+    required: true
+  unity_cloud_build_target_platform:
+    description: 'Unity Cloud Build Target Platform'
+    required: true
+  unity_cloud_build_download_binary:
+    description: 'Download the build binary to GITHUB_WORKSPACE'
+    required: false
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    UNITY_CLOUD_BUILD_API_KEY: ${{ inputs.unity_cloud_build_api_key }}
+    UNITY_CLOUD_BUILD_ORG_ID: ${{ inputs.unity_cloud_build_org_id }}
+    UNITY_CLOUD_BUILD_PROJECT_ID: ${{ inputs.unity_cloud_build_project_id }}
+    UNITY_CLOUD_BUILD_POLLING_INTERVAL: ${{ inputs.unity_cloud_build_polling_interval }}
+    UNITY_CLOUD_BUILD_PRIMARY_TARGET: ${{ inputs.unity_cloud_build_primary_target }}
+    UNITY_CLOUD_BUILD_TARGET_PLATFORM: ${{ inputs.unity_cloud_build_target_platform }}
+    UNITY_CLOUD_BUILD_DOWNLOAD_BINARY: ${{ inputs.unity_cloud_build_download_binary }}
