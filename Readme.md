@@ -1,4 +1,5 @@
-# Run Unity Cloud Build Action
+Run Unity Cloud Build Action
+==============================
 
 This actions allows us to run Unity Cloud Build jobs from GitHub on pull request and merge to main branch.
 The action uses the Unity Cloud Build REST API to kick off a build and then polls it until the job is complete.
@@ -11,7 +12,25 @@ do this, all the build would be run against the main branch and not the changes 
 If a PR has further changes to pushed to it after initially being opened, the action will re-use the previous setup PR build target.
 Doing this allows us to make use of Unity Cloud Build's build target caching mechanism which speeds up subsequent builds slightly.
 
-## Inputs
+Debugging
+----------------
+- Don't hesitate to use Unity's own unity-cloud-build-api checker; [https://build-api.cloud.unity3d.com/docs/1.0.0/index.html](https://build-api.cloud.unity3d.com/docs/1.0.0/index.html)
+- The action will list out all projectids in an organisation, and if that is successfull, all build targets for a projectid. Check the logs!
+- `403 User not authorised` is a common error for when organisationids or projectids are incorrect.
+- `API_KEY missing` error from `action.py` often means you have provided a secret which doesn't exist, or is empty.
+
+
+
+Running Action Locally
+================================
+On Macos;
+- `python3 pip install poetry`
+- `poetry install`
+- `poetry run python -m action API_KEY ORG_ID PROJECT_ID BUILD_TARGET ios`
+
+
+Inputs
+--------
 
 The action requires a series of inputs from the workflow file. These are then passed to the action as environment variables that the
 action then picks up and utilises to make relevant calls to Unity Cloud Build.
@@ -32,7 +51,10 @@ action then picks up and utilises to make relevant calls to Unity Cloud Build.
 
 ### `unity_cloud_build_project_id`
 
-**Required**  - The Unity Cloud Build project ID - As with organisation ID, find this in urls for projects in your Unity Cloud Dashboard. (expected to be a string)
+**Required**  
+- The Unity Cloud Build project ID
+- Unity will fail if the project id has spaces in it, these should be replaced with dashes
+- `My Project` has a project id of `my-project`
 
 ### `unity_cloud_build_primary_target`
 
