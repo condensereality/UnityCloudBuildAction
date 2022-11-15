@@ -86,7 +86,8 @@ class UnityCloudBuildClient:
 
     @tenacity.retry(
         wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
-        stop=tenacity.stop_after_attempt(10),
+        stop=tenacity.stop_after_attempt(2),
+        before=before_log(logger, logging.DEBUG)
     )
     def get_build_target(self, build_target_id: str) -> Dict:
         """
@@ -96,16 +97,19 @@ class UnityCloudBuildClient:
         resp = requests.get(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}",
             headers=self.prepare_headers(),
+            timeout=10
         )
         if resp.status_code == 200:
             return resp.json()
-        raise Exception(
-            f"Failed to lookup build target meta for {build_target_id} - received a HTTP status code {resp.status_code}"
-        )
+            
+        # log http response (on actual failures, dont use tenacity to keep retrying...)
+        logger.info(f"Fetch build target meta failed; status={resp.status_code} content={resp.text}")
+        raise Exception(f"Failed to lookup build target meta for {build_target_id} - received status={resp.status_code} content={resp.text}")
 
     @tenacity.retry(
         wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
         stop=tenacity.stop_after_attempt(10),
+        before=before_log(logger, logging.DEBUG)
     )
     def set_build_target_env_var(
         self, build_target_id: str, key: str, value: str
@@ -123,13 +127,16 @@ class UnityCloudBuildClient:
         )
         if resp.status_code == 200:
             return
-        raise Exception(
-            f"Env var could not be set - received a HTTP {resp.status_code}"
-        )
+        raise Exception(f"Env var could not be set - received status={resp.status_code} content={resp.text}")
+
+
+
+
 
     @tenacity.retry(
         wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
         stop=tenacity.stop_after_attempt(10),
+        before=before_log(logger, logging.DEBUG)
     )
     def get_build_target_id(self) -> str:
         """
@@ -201,9 +208,7 @@ class UnityCloudBuildClient:
                         f"Build target for this PR already exists: {name}. Re-using..."
                     )
                     return name
-            raise Exception(
-                f"Build target could not be created - received a HTTP {resp.status_code}"
-            )
+            raise Exception(f"Build target could not be created - received status={resp.status_code} content={resp.text}")
 
         # otherwise return the primary build target (main branch)
         return self.primary_build_target_id
