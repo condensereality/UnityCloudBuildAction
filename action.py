@@ -59,6 +59,42 @@ class UnityCloudBuildClient:
             "Authorization": f"Basic {self.api_key}",
         }
 
+
+    # List all the projects org. This is essentially to verify input settings
+    def list_projects(self) -> Dict:
+        logger.info(f"Fetching projects for {self.org_id}...")
+        resp = requests.get(
+            f"{self.api_base_url}/orgs/{self.org_id}/projects",
+            headers=self.prepare_headers(),
+            timeout=10
+        )
+        if resp.status_code == 200:
+            Projects = ", ".join(x["projectid"] for x in resp.json())
+            logger.info(f"Got organisation projects; {Projects}")
+            return
+        raise Exception(f"Failed to lookup projects for {self.org_id} - received status={resp.status_code} content={resp.text}")
+
+
+
+    # List all the build targets for this org/project. This is essentially to verify credentials/org/project settings
+    def list_build_targets(self) -> Dict:
+        logger.info(f"Fetching build targets for {self.org_id}/{self.project_id}...")
+        resp = requests.get(
+            f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets",
+            headers=self.prepare_headers(),
+            timeout=10
+        )
+        if resp.status_code == 200:
+            BuildTargets = ", ".join(x["buildtargetid"] for x in resp.json())
+            #logger.info(f"Got organisation projects; {Projects}")
+            # todo: extract/format build targets from json
+            logger.info(f"Got project build targets; {BuildTargets}")
+            return resp.json()
+
+        raise Exception(f"Failed to lookup build targets for {self.org_id}/{self.project_id} - received status={resp.status_code} content={resp.text}")
+
+
+
     def download_artifact(self, url: str) -> None:
         """ Downloads the final built binary to disk """
         logger.info("Downloading built binary to workspace...")
@@ -335,6 +371,16 @@ def main(
         download_binary,
     )
 
+
+    try:
+        client.list_projects()
+        client.list_build_targets()
+    except:
+        logger.critical("Failed to get organisation projects, or project build targets. Credentials are probably incorrect.")
+        sys.exit(1)
+        
+        
+        
     # obtain the build target we need to run against
     try:
         build_target_id: str = client.get_build_target_id()
