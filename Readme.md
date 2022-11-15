@@ -25,7 +25,10 @@ action then picks up and utilises to make relevant calls to Unity Cloud Build.
 
 ### `unity_cloud_build_org_id`
 
-**Required**  - The Unity Cloud Build organisation ID - this is can be found by [browsing your organisations](https://id.unity.com/en/organizations/) and finding the organisation name in any links/urls. (expected to be a string)
+**Required**  
+- The Unity Cloud Build organisation ID 
+- this is can be found by [browsing your organisations](https://id.unity.com/en/organizations/) and finding the organisation name in any links/urls. (expected to be a string)
+- Organisation id's will fail if they have spaces, and UnityCloudBuild expects spaces to be replaced with dashes; https://forum.unity.com/threads/ucb-api-error-not-authorized-user-does-not-have-correct-permissions-to-perform-this-operation.730976/
 
 ### `unity_cloud_build_project_id`
 
