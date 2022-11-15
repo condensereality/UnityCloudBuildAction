@@ -330,6 +330,7 @@ def main(
     # obtain the build target we need to run against
     try:
         build_target_id: str = client.get_build_target_id()
+        logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
     except tenacity.RetryError:
         logger.critical("Unable to obtain unity build target after 10 attempts!")
         sys.exit(1)
@@ -342,13 +343,14 @@ def main(
             )
         except tenacity.RetryError:
             logger.critical(
-                f"Unable to set env var on {build_target_id} after 10 attempts!"
+                f"Unable to set env var BUILD_PLATFORM={target_platform} on {build_target_id} after 10 attempts!"
             )
             sys.exit(1)
 
     # create a new build for the specified build target
     try:
         build_number = client.start_build(build_target_id)
+        logger.info(f"Started build number {build_number}")
     except tenacity.RetryError:
         logger.critical(
             f"Unable to start unity build {build_target_id} after 10 attempts!"
