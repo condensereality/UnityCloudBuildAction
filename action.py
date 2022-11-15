@@ -87,7 +87,7 @@ class UnityCloudBuildClient:
     @tenacity.retry(
         wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
         stop=tenacity.stop_after_attempt(2),
-        before=before_log(logger, logging.DEBUG)
+        after=tenacity.after_log(logger, logging.DEBUG)
     )
     def get_build_target(self, build_target_id: str) -> Dict:
         """
@@ -109,7 +109,7 @@ class UnityCloudBuildClient:
     @tenacity.retry(
         wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
         stop=tenacity.stop_after_attempt(10),
-        before=before_log(logger, logging.DEBUG)
+        after=tenacity.after_log(logger, logging.DEBUG)
     )
     def set_build_target_env_var(
         self, build_target_id: str, key: str, value: str
@@ -136,7 +136,7 @@ class UnityCloudBuildClient:
     @tenacity.retry(
         wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
         stop=tenacity.stop_after_attempt(10),
-        before=before_log(logger, logging.DEBUG)
+        after=tenacity.after_log(logger, logging.DEBUG)
     )
     def get_build_target_id(self) -> str:
         """
