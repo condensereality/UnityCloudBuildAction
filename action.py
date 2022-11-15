@@ -135,9 +135,11 @@ class UnityCloudBuildClient:
         Creates a new build target in Unity Cloud Build if we are dealing with a pull request.
         Otherwise we return the primary build target (main)
         """
+        # get primary build target so that we can copy across all relevant settings to our PR target
+        # always fetch it, to validate if the user-input target id is correct
+        primary_build_target = self.get_build_target(self.primary_build_target_id)
+        
         if self.pr_branch_name:
-            # get primary build target so that we can copy across all relevant settings to our PR target
-            primary_build_target = self.get_build_target(self.primary_build_target_id)
 
             # replace any special chars and ensure length is max of 56 chars
             # 64 is the limit, but we allow some free chars for platform
