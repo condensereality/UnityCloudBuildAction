@@ -120,11 +120,7 @@ class UnityCloudBuildClient:
         )
         sys.exit(1)
 
-    @tenacity.retry(
-        wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
-        stop=tenacity.stop_after_attempt(2),
-        after=tenacity.after_log(logger, logging.DEBUG)
-    )
+    
     def get_build_target(self, build_target_id: str) -> Dict:
         """
         Looks up a build target from Unity Cloud Build
@@ -138,9 +134,8 @@ class UnityCloudBuildClient:
         if resp.status_code == 200:
             return resp.json()
             
-        # log http response (on actual failures, dont use tenacity to keep retrying...)
-        logger.info(f"Fetch build target meta failed; status={resp.status_code} content={resp.text}")
         raise Exception(f"Failed to lookup build target meta for {build_target_id} - received status={resp.status_code} content={resp.text}")
+
 
     @tenacity.retry(
         wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
@@ -169,11 +164,11 @@ class UnityCloudBuildClient:
 
 
 
-    @tenacity.retry(
-        wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
-        stop=tenacity.stop_after_attempt(10),
-        after=tenacity.after_log(logger, logging.DEBUG)
-    )
+    #@tenacity.retry(
+    #    wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
+    #    stop=tenacity.stop_after_attempt(10),
+    #    after=tenacity.after_log(logger, logging.DEBUG)
+    #)
     def get_build_target_id(self) -> str:
         """
         Creates a new build target in Unity Cloud Build if we are dealing with a pull request.
@@ -226,6 +221,7 @@ class UnityCloudBuildClient:
                 f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets",
                 headers=self.prepare_headers(),
                 json=payload,
+                timeout=10
             )
             if resp.status_code == 201:
                 data = resp.json()
@@ -385,8 +381,8 @@ def main(
     try:
         build_target_id: str = client.get_build_target_id()
         logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
-    except tenacity.RetryError:
-        logger.critical("Unable to obtain unity build target after 10 attempts!")
+    except BaseException as exception:
+        logger.critical(f"Unable to obtain unity build target {exception}")
         sys.exit(1)
 
     if build_target_id != primary_build_target:
