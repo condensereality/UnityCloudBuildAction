@@ -371,8 +371,8 @@ def main(
     try:
         client.list_projects()
         client.list_build_targets()
-    except:
-        logger.critical("Failed to get organisation projects, or project build targets. Credentials are probably incorrect.")
+    except BaseException as exception:
+        logger.critical(f"Failed to get organisation projects, or project build targets. Credentials are probably incorrect; {exception}")
         sys.exit(1)
         
         
@@ -382,7 +382,7 @@ def main(
         build_target_id: str = client.get_build_target_id()
         logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
     except BaseException as exception:
-        logger.critical(f"Unable to obtain unity build target {exception}")
+        logger.critical(f"Unable to obtain unity build target; {exception}")
         sys.exit(1)
 
     if build_target_id != primary_build_target:
