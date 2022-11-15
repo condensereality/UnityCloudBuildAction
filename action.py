@@ -92,6 +92,7 @@ class UnityCloudBuildClient:
         """
         Looks up a build target from Unity Cloud Build
         """
+        logger.info(f"Fetching build target meta for {build_target_id}...")
         resp = requests.get(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}",
             headers=self.prepare_headers(),
@@ -99,7 +100,7 @@ class UnityCloudBuildClient:
         if resp.status_code == 200:
             return resp.json()
         raise Exception(
-            f"Could not lookup primary build target - received a HTTP {resp.status_code}"
+            f"Failed to lookup build target meta for {build_target_id} - received a HTTP status code {resp.status_code}"
         )
 
     @tenacity.retry(
