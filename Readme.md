@@ -75,7 +75,18 @@ action then picks up and utilises to make relevant calls to Unity Cloud Build.
 - output: `env.ARTIFACT_FILEPATH` is set to the full file path of the local file after download
 - Whether or not to download the built binary to your ``GITHUB_WORKSPACE``
 
-**Optional** - Whether or not to download the built binary to your ``GITHUB_WORKSPACE``
+### `unity_cloud_build_create_share`
+- `optional`
+- default: `false`
+- output: `env.SHARE_URL` is set to the sharing url
+- Tell UnityCloudBuild to generate a sharing url to allow easy installation
+
+
+### `unity_cloud_build_use_existing_build_number`
+- `optional`
+- default: `-1`
+- Instead of starting a new build, if this is >=0 the action will use an existing build number and still execute downloading artifacts, creating share urls etc
+
 
 ## Example usage
 
@@ -110,6 +121,7 @@ jobs:
           unity_cloud_build_primary_target: yourgame-ios-default
           unity_cloud_build_target_platform: android
           unity_cloud_build_download_binary: false
+          unity_cloud_build_create_share: true
 ```
 
 Outputs
@@ -117,6 +129,8 @@ Outputs
 This action outputs several `env` vars to relay meta back out to the workflow
 - `ARTIFACT_FILEPATH` local path to Unity Cloud Build artifact. Generated if `unity_cloud_build_download_binary` is true
 - `ARTIFACT_FILENAME` just the filename of the Unity Cloud Build artifact. Generated if `unity_cloud_build_download_binary` is true
+- `SHARE_URL` url to sharing url. Generated if `unity_cloud_build_create_share` is true
+
 
 
 Uploading to AppStoreConnect TestFlight

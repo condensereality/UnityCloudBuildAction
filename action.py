@@ -12,7 +12,7 @@ import requests
 import tenacity
 
 import os
-
+import json
 
 
 # setup logging
@@ -327,20 +327,46 @@ class UnityCloudBuildClient:
             logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} is still running: {status}")
             return
         raise Exception(f"Could not check status of build - http status={resp.status_code} content={resp.text}")
-                )
 
-                # if we have been asked to save the built binary to disk, then we download it.
-                if self.download_binary:
-                    self.download_artifact(data["links"]["download_primary"]["href"])
-                sys.exit()
-            logger.info(
-                f"Build {build_number} on project {self.project_id} on target {build_target_id} is still running: {status}"
-            )
-            return
-        raise Exception(
-            f"Could not check status of build - received a HTTP {resp.status_code}"
+    def get_share_url_from_share_id(self, share_id:str ) -> str:
+        return f"https://developer.cloud.unity3d.com/share/share.html?shareId={share_id}"
+
+    def create_share_url(self, build_target_id: str,build_number: int) -> str:
+        # if a share already exists for this build, it will be revoked and a new one created (note: same url as GET share meta)
+        create_share_url = f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}/share"
+        post_body = {'shareExpiry':''}
+        response = requests.post(
+                            create_share_url,
+                            headers=self.prepare_headers(),
+                            timeout=10,
+                            data=json.dumps(post_body)
+        )
+        if response.status_code != 200:
+            raise Exception(f"Failed to get create share for build - http status={response.status_code} content={response.text}")
+            
+        share_meta = response.json()
+        logger.info(f"Created share - received status={response.status_code} content={response.text}")
+        return self.get_share_url_from_share_id( share_meta["shareid"] )
+
+    
+    
+    def get_share_url(self, build_target_id: str,build_number: int) -> str:
+        # fetch share id
+        share_meta_url = f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}/share",
+        response = requests.get(
+                    share_meta_url,
+                    headers=self.prepare_headers(),
+                    timeout=10
         )
 
+        # responds with
+        # 200{ "shareid": "-1k77srZTd",	"shareExpiry": "2022-11-30T11:57:53.448Z" }
+        # 404 Error: No share found.
+        if response.status_code != 200:
+            raise Exception(f"Failed to get share meta from {share_meta_url} - http status={response.status_code} content={response.text}")
+        share_meta = response.json()
+        return self.get_share_url_from_share_id( share_meta["shareid"] )
+        
 
 @click.command()
 @click.argument("api_key", envvar="UNITY_CLOUD_BUILD_API_KEY", type=str)
@@ -361,6 +387,18 @@ class UnityCloudBuildClient:
     default=False,
 )
 @click.argument("github_head_ref", envvar="GITHUB_HEAD_REF", type=str, default="")
+@click.argument(
+    "create_share",
+    envvar="UNITY_CLOUD_BUILD_CREATE_SHARE",
+    type=bool,
+    default=True,
+)
+@click.argument(
+    "existing_build_number",
+    envvar="UNITY_CLOUD_BUILD_USE_EXISTING_BUILD_NUMBER",
+    type=int,
+    default=-1,
+)
 def main(
     api_key: str,
     org_id: str,
@@ -370,6 +408,8 @@ def main(
     polling_interval: float,
     download_binary: bool,
     github_head_ref: str,
+    create_share: bool,
+    existing_build_number: int,
 ) -> None:
 
     # validate incoming target platform
@@ -417,16 +457,21 @@ def main(
                 f"Unable to set env var BUILD_PLATFORM={target_platform} on {build_target_id} after 10 attempts!"
             )
             sys.exit(1)
-
-    # create a new build for the specified build target
-    try:
-        build_number = client.start_build(build_target_id)
-        logger.info(f"Started build number {build_number}")
-    except tenacity.RetryError:
-        logger.critical(
-            f"Unable to start unity build {build_target_id} after 10 attempts!"
-        )
-        sys.exit(1)
+            
+    # for testing, use existing build number
+    if existing_build_number >= 0:
+        logger.info(f"Using existing build number {existing_build_number}")
+        build_number = existing_build_number
+    else:
+        # create a new build for the specified build target
+        try:
+            build_number = client.start_build(build_target_id)
+            logger.info(f"Started build number {build_number}")
+        except tenacity.RetryError:
+            logger.critical(
+                f"Unable to start unity build {build_target_id} after 10 attempts!"
+            )
+            sys.exit(1)
 
     # poll the running build for updates waiting for an polling interval between each poll
     while True:
@@ -447,6 +492,12 @@ def main(
         write_github_env("ARTIFACT_FILENAME", artifact_meta["filename"])
         write_github_env("ARTIFACT_FILEPATH", artifact_meta["filepath"])
 
+    # print out any sharing info to env var
+    if create_share:
+        share_url = client.create_share_url(build_target_id, build_number)
+        logger.info(f"Got sharing url {share_url}")
+        write_github_env("SHARE_URL", share_url)
+            
     sys.exit(0)
 
 if __name__ == "__main__":
