@@ -22,10 +22,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# write out meta back to workflow via github output vars
 github_output_filename = os.getenv('GITHUB_OUTPUT')
 github_env_filename = os.getenv('GITHUB_ENV')
 
-# write out meta back to workflow via github output vars
 def write_github_output_and_env(key: str,value: str) -> None:
     
     with open(github_output_filename, "a") as output:
@@ -36,8 +36,19 @@ def write_github_output_and_env(key: str,value: str) -> None:
         env.write(f"{key}={value}\n")
         logger.info(f"Wrote GITHUB_ENV var {key}={value}")
 
+
 # error script early if we can't write github env vars
 write_github_output_and_env("github_output_test_key","test_value")
+
+# hardcoded meta for platforms
+# todo: remove these as they're not always correct.
+#	infer filename from download url.
+#	We already handle any filename in the output via ARTIFACT_FILEPATH
+platform_default_artifact_filenames = {
+  'ios':'ios.ipa',
+  'android':'android.aab', # often is apk
+  'webgl':'webgl.zip',
+}
 
 
 class UnityCloudBuildClient:
@@ -123,12 +134,7 @@ class UnityCloudBuildClient:
         if resp.status_code == 200:
             try:
                 # todo: dont rename files. eg. android output is .apk, use that
-                if self.target_platform == "android":
-                    filename = "android.aab"
-                elif self.target_platform == "ios":
-                    filename = "ios.ipa"
-                elif self.target_platform == "webgl":
-                    filename = "webgl.zip"
+                filename = platform_default_artifact_filenames[self.target_platform]
                 p = Path("builds")
                 p.mkdir(exist_ok=True)
                 filepath = (p / filename)
@@ -421,8 +427,9 @@ def main(
 
     # validate incoming target platform
     target_platform = target_platform.lower()
-    if target_platform not in ["android", "ios", "webgl"]:
-        logger.critical("Target platform must be android, ios or webgl!")
+    if target_platform not in platform_default_artifact_filenames.keys():
+        platform_list = ", ".join(x for x in platform_default_artifact_filenames.keys())
+        logger.critical(f"Target platform must be one of {platform_list}")
         sys.exit(1)
 
     # create unity cloud build client
