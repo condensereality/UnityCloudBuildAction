@@ -69,6 +69,11 @@ action then picks up and utilises to make relevant calls to Unity Cloud Build.
 **Optional**  - The frequency with which to query Unity Cloud Build jobs - the default is ``60`` seconds.
 
 ### `unity_cloud_build_download_binary`
+- `optional`
+- default: `false`
+- output: `env.ARTIFACT_FILENAME` is set to the filename of the local file after download
+- output: `env.ARTIFACT_FILEPATH` is set to the full file path of the local file after download
+- Whether or not to download the built binary to your ``GITHUB_WORKSPACE``
 
 **Optional** - Whether or not to download the built binary to your ``GITHUB_WORKSPACE``
 
@@ -106,6 +111,13 @@ jobs:
           unity_cloud_build_target_platform: android
           unity_cloud_build_download_binary: false
 ```
+
+Outputs
+-------------
+This action outputs several `env` vars to relay meta back out to the workflow
+- `ARTIFACT_FILEPATH` local path to Unity Cloud Build artifact. Generated if `unity_cloud_build_download_binary` is true
+- `ARTIFACT_FILENAME` just the filename of the Unity Cloud Build artifact. Generated if `unity_cloud_build_download_binary` is true
+
 
 Uploading to AppStoreConnect TestFlight
 ===================================

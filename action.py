@@ -11,10 +11,26 @@ import click
 import requests
 import tenacity
 
+import os
+
+
+
+# setup logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+env_filename = os.getenv('GITHUB_ENV')
+# write out meta back to workflow via github env vars
+def write_github_env(key: str,value: str) -> None:
+    with open(env_filename, "a") as env:
+        env.write(f"{key}={value}")
+        logger.info(f"Wrote ENV var {key}={value}")
+
+# error script early if we can't write github env vars
+write_github_env("github_env_test_key","test_value")
 
 
 class UnityCloudBuildClient:
@@ -30,7 +46,6 @@ class UnityCloudBuildClient:
         primary_build_target: str,
         target_platform: str,
         github_head_ref: str = "",
-        download_binary: bool = False,
     ) -> None:
         """
         If this action is being kicked off via a pull request, then ``github_head_ref`` var will
@@ -48,7 +63,6 @@ class UnityCloudBuildClient:
         self.primary_build_target_id = primary_build_target.lower()
         self.pr_branch_name = github_head_ref
         self.pr_branch_name = self.pr_branch_name.replace("refs/heads/", "")
-        self.download_binary = download_binary
 
     def prepare_headers(self) -> Dict:
         """
@@ -97,10 +111,11 @@ class UnityCloudBuildClient:
 
     def download_artifact(self, url: str) -> None:
         """ Downloads the final built binary to disk """
-        logger.info("Downloading built binary to workspace...")
+        logger.info(f"Downloading built binary to workspace... {url}")
         resp = requests.get(url, allow_redirects=True)
         if resp.status_code == 200:
             try:
+                # todo: dont rename files. eg. android output is .apk, use that
                 if self.target_platform == "android":
                     filename = "android.aab"
                 elif self.target_platform == "ios":
@@ -109,15 +124,18 @@ class UnityCloudBuildClient:
                     filename = "webgl.zip"
                 p = Path("builds")
                 p.mkdir(exist_ok=True)
-                (p / filename).write_bytes(resp.content)
-            except IOError:
-                logger.critical("Could not write built binary to disk")
+                filepath = (p / filename)
+                filepath.write_bytes(resp.content)
+            except IOError as exception:
+                logger.critical(f"Could not write built binary to disk {exception}")
                 sys.exit(1)
-            logger.info("Download successful!")
-            return
-        logger.critical(
-            f"Build could not be downloaded - received a HTTP {resp.status_code}"
-        )
+
+            meta = { "filename":filename, "filepath":filepath.absolute() }
+            logger.info(f"Download to {meta['filepath']} successful!")
+            return meta
+            
+        logger.critical(f"Build could not be downloaded - http status={resp.status_code} content={resp.text}")
+        # gr: throw instead of exiting here
         sys.exit(1)
 
     
@@ -291,18 +309,24 @@ class UnityCloudBuildClient:
         resp = requests.get(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}",
             headers=self.prepare_headers(),
+            timeout=10
         )
         if resp.status_code == 200:
             data = resp.json()
             status = data["buildStatus"]
+
             if status in failed_statuses:
-                logger.critical(
-                    f"Build {build_number} on project {self.project_id} on target {build_target_id} failed with status: {status}"
-                )
+                logger.critical(f"Build {build_number} on project {self.project_id} on target {build_target_id} failed with status: {status}")
+                # gr: throw here instead of exiting?
                 sys.exit(1)
+
             if status in success_statuses:
-                logger.info(
-                    f"Build {build_number} on project {self.project_id} on target {build_target_id} completed successfully!"
+                logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} completed successfully!")
+                return data
+                
+            logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} is still running: {status}")
+            return
+        raise Exception(f"Could not check status of build - http status={resp.status_code} content={resp.text}")
                 )
 
                 # if we have been asked to save the built binary to disk, then we download it.
@@ -322,9 +346,7 @@ class UnityCloudBuildClient:
 @click.argument("api_key", envvar="UNITY_CLOUD_BUILD_API_KEY", type=str)
 @click.argument("org_id", envvar="UNITY_CLOUD_BUILD_ORG_ID", type=str)
 @click.argument("project_id", envvar="UNITY_CLOUD_BUILD_PROJECT_ID", type=str)
-@click.argument(
-    "primary_build_target", envvar="UNITY_CLOUD_BUILD_PRIMARY_TARGET", type=str
-)
+@click.argument("primary_build_target", envvar="UNITY_CLOUD_BUILD_PRIMARY_TARGET", type=str)
 @click.argument("target_platform", envvar="UNITY_CLOUD_BUILD_TARGET_PLATFORM", type=str)
 @click.argument(
     "polling_interval",
@@ -364,7 +386,6 @@ def main(
         primary_build_target,
         target_platform,
         github_head_ref,
-        download_binary,
     )
 
 
@@ -410,15 +431,23 @@ def main(
     # poll the running build for updates waiting for an polling interval between each poll
     while True:
         try:
-            client.get_build_status(build_target_id, build_number)
-        except tenacity.RetryError:
-            logger.critical(
-                f"Unable to check status unity build {build_target_id} {build_number} after 10 attempts!"
-            )
+            build_meta = client.get_build_status(build_target_id, build_number)
+            break
+        except tenacity.RetryError as exception:
+            logger.critical(f"Unable to check status unity build {build_target_id} {build_number} after 10 attempts! {exception}")
             sys.exit(1)
         logger.info(f"Waiting {polling_interval} seconds...")
         time.sleep(polling_interval)
 
+    logger.info(f"Build completed successfull; {build_meta}")
+    
+    # Build finished successfully
+    if download_binary:
+        artifact_meta = client.download_artifact(build_meta["links"]["download_primary"]["href"])
+        write_github_env("ARTIFACT_FILENAME", artifact_meta["filename"])
+        write_github_env("ARTIFACT_FILEPATH", artifact_meta["filepath"])
+
+    sys.exit(0)
 
 if __name__ == "__main__":
     sys.exit(main())
