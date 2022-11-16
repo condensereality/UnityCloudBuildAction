@@ -98,8 +98,7 @@ jobs:
     name: Run Unity Cloud Build - Condense Live (Android)
     runs-on: ubuntu-22.04
     outputs:
-       artifact_filepath:
-         value: ${{ steps.rununitycloudbuildaction.artifact_filepath }}
+       artifact_filepath: ${{ steps.rununitycloudbuildaction.ARTIFACT_FILEPATH }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
