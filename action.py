@@ -26,7 +26,7 @@ env_filename = os.getenv('GITHUB_ENV')
 # write out meta back to workflow via github env vars
 def write_github_env(key: str,value: str) -> None:
     with open(env_filename, "a") as env:
-        env.write(f"{key}={value}")
+        env.write(f"{key}={value}\n")
         logger.info(f"Wrote ENV var {key}={value}")
 
 # error script early if we can't write github env vars
