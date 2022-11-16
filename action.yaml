@@ -22,7 +22,13 @@ inputs:
     description: 'Unity Cloud Build Target Platform'
     required: true
   unity_cloud_build_download_binary:
-    description: 'Download the build binary to GITHUB_WORKSPACE'
+    description: 'Download the build binary to env.ARTIFACT_FILEPATH'
+    required: false
+  unity_cloud_build_create_share:
+    description: 'Create a sharing url in UnityCloudBuild and output to env.SHARE_URL'
+    required: false
+  unity_cloud_build_use_existing_build_number:
+    description: 'Force the process to use an existing build number instead of starting a new build'
     required: false
 runs:
   using: 'docker'
@@ -35,3 +41,5 @@ runs:
     UNITY_CLOUD_BUILD_PRIMARY_TARGET: ${{ inputs.unity_cloud_build_primary_target }}
     UNITY_CLOUD_BUILD_TARGET_PLATFORM: ${{ inputs.unity_cloud_build_target_platform }}
     UNITY_CLOUD_BUILD_DOWNLOAD_BINARY: ${{ inputs.unity_cloud_build_download_binary }}
+    UNITY_CLOUD_BUILD_CREATE_SHARE: ${{ inputs.unity_cloud_build_create_share }}
+    UNITY_CLOUD_BUILD_USE_EXISTING_BUILD_NUMBER: ${{ inputs.unity_cloud_build_use_existing_build_number }}
