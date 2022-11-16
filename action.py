@@ -22,15 +22,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-env_filename = os.getenv('GITHUB_ENV')
-# write out meta back to workflow via github env vars
-def write_github_env(key: str,value: str) -> None:
-    with open(env_filename, "a") as env:
+github_output_filename = os.getenv('GITHUB_OUTPUT')
+github_env_filename = os.getenv('GITHUB_ENV')
+
+# write out meta back to workflow via github output vars
+def write_github_output_and_env(key: str,value: str) -> None:
+    
+    with open(github_output_filename, "a") as output:
+        output.write(f"{key}={value}\n")
+        logger.info(f"Wrote GITHUB_OUTPUT var {key}={value}")
+    
+    with open(github_env_filename, "a") as env:
         env.write(f"{key}={value}\n")
-        logger.info(f"Wrote ENV var {key}={value}")
+        logger.info(f"Wrote GITHUB_ENV var {key}={value}")
 
 # error script early if we can't write github env vars
-write_github_env("github_env_test_key","test_value")
+write_github_output_and_env("github_output_test_key","test_value")
 
 
 class UnityCloudBuildClient:
@@ -491,14 +498,14 @@ def main(
     # Build finished successfully
     if download_binary:
         artifact_meta = client.download_artifact(build_meta["links"]["download_primary"]["href"])
-        write_github_env("ARTIFACT_FILENAME", artifact_meta["filename"])
-        write_github_env("ARTIFACT_FILEPATH", artifact_meta["filepath"])
+        write_github_output_and_env("ARTIFACT_FILENAME", artifact_meta["filename"])
+        write_github_output_and_env("ARTIFACT_FILEPATH", artifact_meta["filepath"])
 
     # print out any sharing info to env var
     if create_share:
         share_url = client.create_share_url(build_target_id, build_number)
         logger.info(f"Got sharing url {share_url}")
-        write_github_env("SHARE_URL", share_url)
+        write_github_output_and_env("SHARE_URL", share_url)
             
     sys.exit(0)
 

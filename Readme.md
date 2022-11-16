@@ -97,6 +97,9 @@ jobs:
   run-unity-cloud-build-condense-live-android:
     name: Run Unity Cloud Build - Condense Live (Android)
     runs-on: ubuntu-22.04
+    outputs:
+       artifact_filepath:
+         value: ${{ steps.rununitycloudbuildaction.artifact_filepath }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -112,7 +115,7 @@ jobs:
           cd .github/actions/unity-cloud-build/ && poetry export -f requirements.txt > requirements.txt
       - name: Run Unity Cloud Build Action
         uses: ./.github/actions/unity-cloud-build
-        id: run-unity-cloud-build-action
+        id: rununitycloudbuildaction
         with:
           unity_cloud_build_api_key: ${{ secrets.UNITY_CLOUD_BUILD_API_KEY }}
           unity_cloud_build_org_id: yourorganisation
@@ -122,11 +125,13 @@ jobs:
           unity_cloud_build_target_platform: android
           unity_cloud_build_download_binary: false
           unity_cloud_build_create_share: true
+          
 ```
 
 Outputs
 -------------
-This action outputs several `env` vars to relay meta back out to the workflow
+This action outputs several `env` vars to relay meta back out to the workflow. 
+These are also written to `GITHUB_OUTPUT` for use via `needs.job.output` and `steps.step.outputs.xxx`
 - `ARTIFACT_FILEPATH` local path to Unity Cloud Build artifact. Generated if `unity_cloud_build_download_binary` is true
 - `ARTIFACT_FILENAME` just the filename of the Unity Cloud Build artifact. Generated if `unity_cloud_build_download_binary` is true
 - `SHARE_URL` url to sharing url. Generated if `unity_cloud_build_create_share` is true
