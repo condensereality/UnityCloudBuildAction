@@ -106,3 +106,17 @@ jobs:
           unity_cloud_build_target_platform: android
           unity_cloud_build_download_binary: false
 ```
+
+Uploading to AppStoreConnect TestFlight
+===================================
+Uploading ios `.ipa` builds (`todo: how to configure build to generate .ipa`) to testflight is a simple process via `xcode`'s command line tools. 
+This can be implemented in a workflow with just a single step
+- The step needs to run on a macos runner (eg. `macos-latest`)
+```
+   - name: Upload .ipa to TestFlight
+     run: xcrun altool --upload-app --file ${IOS_IPA_FILENAME} --type ios --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
+``
+- `IosBundleId` should be the bundle id in appstoreconnect, eg. `com.you.app` `todo: does it need to be correct, or is it taken from ipa?`
+- `IosBundleVersion` can be 0. AppStoreConnect correctly uses the bundle version in the ipa
+- `IosBundleShortVersionString` can be 0. AppStoreConnect correctly uses the bundle version in the ipa `todo: is this the build number?`
+- Note; the `.p8` contents should be stored in `./private_keys/AuthKey_$APPSTORECONNECT_AUTH_KEY.p8` (same filename as downloaded in `keys` section of appstore connecct
