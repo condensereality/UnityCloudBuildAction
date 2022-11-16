@@ -477,7 +477,9 @@ def main(
     while True:
         try:
             build_meta = client.get_build_status(build_target_id, build_number)
-            break
+            # build meta is returned once the build succeeds
+            if build_meta:
+                break
         except tenacity.RetryError as exception:
             logger.critical(f"Unable to check status unity build {build_target_id} {build_number} after 10 attempts! {exception}")
             sys.exit(1)
