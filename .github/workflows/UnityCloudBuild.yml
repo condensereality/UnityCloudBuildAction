@@ -74,8 +74,8 @@ jobs:
       if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
       uses: actions/upload-artifact@v2
       with:
-        name: BuildFile
-        path: ${{ steps.build.outputs.ARTIFACT_PATH }}
+        name: ${{ steps.build.outputs.ARTIFACT_FILENAME }}
+        path: ${{ steps.build.outputs.ARTIFACT_FILEPATH }}
         if-no-files-found: error     
       
       
