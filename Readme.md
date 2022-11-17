@@ -20,15 +20,6 @@ Debugging
 - `API_KEY missing` error from `action.py` often means you have provided a secret which doesn't exist, or is empty.
 
 
-
-Running Action Locally
-================================
-On Macos;
-- `python3 pip install poetry`
-- `poetry install`
-- `poetry run python -m action API_KEY ORG_ID PROJECT_ID BUILD_TARGET ios`
-
-
 Inputs
 --------
 
@@ -136,6 +127,14 @@ These are also written to `GITHUB_OUTPUT` for use via `needs.job.output` and `st
 - `SHARE_URL` url to sharing url. Generated if `unity_cloud_build_create_share` is true
 
 
+Running Action Locally
+================================
+On Macos;
+- `python3 pip install poetry`
+- `poetry install`
+- `poetry run python -m action API_KEY ORG_ID PROJECT_ID BUILD_TARGET ios`
+
+
 
 Uploading to AppStoreConnect TestFlight
 ===================================
@@ -150,3 +149,12 @@ This can be implemented in a workflow with just a single step
 - `IosBundleVersion` can be 0. AppStoreConnect correctly uses the bundle version in the ipa
 - `IosBundleShortVersionString` can be 0. AppStoreConnect correctly uses the bundle version in the ipa `todo: is this the build number?`
 - Note; the `.p8` contents should be stored in `./private_keys/AuthKey_$APPSTORECONNECT_AUTH_KEY.p8` (same filename as downloaded in `keys` section of appstore connecct
+
+
+Reusable Workflow
+==================================
+This repository contains a re-usable workflow; `./github/workflows/UnityCloudBuild.yml` which will
+- Trigger this action to do a Build
+- Share a Sharing Url to slack if slack channel & bot auth key are provided
+- Upload to testflight with appstoreconnect credentials
+

@@ -1,0 +1,100 @@
+# Template/reusable workflow
+# https://docs.github.com/en/actions/using-workflows/reusing-workflows
+name: Build With Unity Cloud
+
+on:
+  workflow_call:
+   inputs:
+     UnityCloudOrganisation:
+       required: true
+       type: string
+     UnityCloudProject:
+       required: true
+       type: string
+     UnityCloudBuildTarget:
+       required: true
+       type: string
+     UnityCloudTargetPlatform:
+       required: true
+       type: string
+     DownloadBinaryToArtifact:
+       required: false
+       type: boolean
+     UploadToTestFlight:
+       required: false
+       type: boolean
+     ReportShareUrl:
+       required: false
+       type: boolean
+     SlackBotChannelId:
+       required: false
+       type: string
+   secrets:
+     UnityCloudBuildApiKey:
+       required: true
+     SlackBotAuthToken: # passing this enables slack reporting
+       required: false
+
+jobs:
+  Build:
+    runs-on: ubuntu-22.04
+    outputs:
+     share_url: ${{ steps.build.outputs.SHARE_URL }}
+     artifact_filepath: ${{ steps.build.outputs.ARTIFACT_FILEPATH }}
+     artifact_filename: ${{ steps.build.outputs.ARTIFACT_FILENAME }}
+      
+    steps:
+    
+    - name: Build with Unity Cloud Build
+      uses: condensereality/UnityCloudBuildAction@main
+      id: build
+      with:
+       unity_cloud_build_api_key: ${{ secrets.UnityCloudBuildApiKey }}
+       unity_cloud_build_org_id: ${{ inputs.UnityCloudOrganisation }}
+       unity_cloud_build_project_id: ${{ inputs.UnityCloudProject }}
+       unity_cloud_build_polling_interval: 60
+       unity_cloud_build_primary_target: ${{ inputs.UnityCloudBuildTarget }}
+       unity_cloud_build_target_platform: ${{ inputs.UnityCloudTargetPlatform }}
+       unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
+       unity_cloud_build_create_share: ${{ inputs.ReportShareUrl }}
+    
+    - name: Store binary as artifact
+      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: BuildFile
+        path: ${{ steps.build.outputs.ARTIFACT_PATH }}
+        if-no-files-found: error
+        
+    - name: Report Sharing Url to Slack
+      if: ${{ steps.build.outputs.SHARE_URL != '' && inputs.SlackBotChannelId != '' }}
+      continue-on-error: true
+      uses: slackapi/slack-github-action@v1.23.0
+      env:
+         RESULT_STRING: ${{ job.status == 'success' && ':green_heart:' || ':x:' }} ${{ job.status }}
+         SLACK_BOT_TOKEN: ${{ secrets.SlackBotAuthToken }}
+         
+      with:
+         channel-id: ${{ inputs.SlackBotChannelId }}
+         slack-message: "`${{github.repository}}/${{github.github.ref_name}} ${{github.workflow}}` ${{env.RESULT_STRING}}\n:gift:${{ inputs.UnityCloudBuildTarget }} sharing Url: ${{ steps.build.outputs.SHARE_URL }}"
+      
+      
+  ReportToSlack:
+   runs-on: ubuntu-22.04
+   # can we force this to run (always()) AND only if channel is present?
+   #if: ${{ inputs.SlackBotChannelId != '' }}
+   if: always()
+   needs: [Build]
+   steps:
+    - name: Notify Slack
+      continue-on-error: true
+      uses: slackapi/slack-github-action@v1.23.0
+      env:
+       SLACK_BOT_TOKEN: ${{ secrets.SlackBotAuthToken }}
+       RESULT_STRING: ${{ needs.Build.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.Build.result }}
+       RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+       COMMIT_STRING: <${{ github.event.pull_request.url || github.event.head_commit.url }}|${{ github.event.pull_request.title || github.event.head_commit.message}}>
+       
+      with:
+       channel-id: ${{ inputs.SlackBotChannelId }}
+       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} \n:pencil2: ${{env.COMMIT_STRING}} \n:runner: ${{env.RUN_URL}} "
