@@ -64,20 +64,7 @@ jobs:
       with:
         name: BuildFile
         path: ${{ steps.build.outputs.ARTIFACT_PATH }}
-        if-no-files-found: error
-        
-    - name: Report Sharing Url to Slack
-      if: ${{ steps.build.outputs.SHARE_URL != '' && inputs.SlackBotChannelId != '' }}
-      continue-on-error: true
-      uses: slackapi/slack-github-action@v1.23.0
-      env:
-         RESULT_STRING: ${{ job.status == 'success' && ':green_heart:' || ':x:' }} ${{ job.status }}
-         SLACK_BOT_TOKEN: ${{ secrets.SlackBotAuthToken }}
-         
-      with:
-         channel-id: ${{ inputs.SlackBotChannelId }}
-         slack-message: "`${{github.repository}}/${{github.github.ref_name}} ${{github.workflow}}` ${{env.RESULT_STRING}}\n:gift:${{ inputs.UnityCloudBuildTarget }} sharing Url: ${{ steps.build.outputs.SHARE_URL }}"
-      
+        if-no-files-found: error     
       
   ReportToSlack:
    runs-on: ubuntu-22.04
@@ -86,6 +73,14 @@ jobs:
    if: always()
    needs: [Build]
    steps:
+    - name: Set SHARE_STRING env
+      if: needs.Build.outputs.share_url != ''
+      env:
+       SHARE_URL: ${{ needs.Build.outputs.share_url }}
+       UNITY_CLOUD_BUILD_TARGET: ${{ inputs.UnityCloudBuildTarget }}
+      run: |
+       echo "SHARE_STRING=:gift: $UNITY_CLOUD_BUILD_TARGET $SHARE_URL" >> "$GITHUB_ENV"
+
     - name: Notify Slack
       continue-on-error: true
       uses: slackapi/slack-github-action@v1.23.0
@@ -97,4 +92,4 @@ jobs:
        
       with:
        channel-id: ${{ inputs.SlackBotChannelId }}
-       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} \n:pencil2: ${{env.COMMIT_STRING}} \n:runner: ${{env.RUN_URL}} "
+       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} \n:pencil2: ${{env.COMMIT_STRING}} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
