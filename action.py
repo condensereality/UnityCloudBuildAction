@@ -54,9 +54,11 @@ write_github_output_and_env("github_output_test_key","test_value")
 #	infer filename from download url.
 #	We already handle any filename in the output via ARTIFACT_FILEPATH
 platform_default_artifact_filenames = {
-  'ios':'ios.ipa',
-  'android':'android.aab', # often is apk
-  'webgl':'webgl.zip',
+  'ios':'Ios.ipa',
+  'android':'Android.aab', # often is apk
+  'webgl':'Webgl.zip',
+  'windows':'Windows.zip',
+  'mac':'Mac.app.zip',
 }
 
 
