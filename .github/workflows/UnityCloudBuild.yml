@@ -131,7 +131,7 @@ jobs:
       uses: slackapi/slack-github-action@v1.23.0
       env:
        SLACK_BOT_TOKEN: ${{ secrets.SlackBotAuthToken }}
-       RESULT_STRING: ${{ needs.Build.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.Build.result }} (TestFlight: ${{ needs.UploadToTestFlight.result }})
+       RESULT_STRING: ${{ needs.Build.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.Build.result }} "TestFlight:" ${{ needs.UploadToTestFlight.result }}
        RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
        COMMIT_STRING: <${{ github.event.pull_request.url || github.event.head_commit.url }}|${{ github.event.pull_request.title || github.event.head_commit.message}}>
        
