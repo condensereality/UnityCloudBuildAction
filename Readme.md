@@ -144,7 +144,8 @@ This can be implemented in a workflow with just a single step
 ```
    - name: Upload .ipa to TestFlight
      run: xcrun altool --upload-app --file ${IOS_IPA_FILENAME} --type ios --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
-``
+```
+
 - `IosBundleId` should be the bundle id in appstoreconnect, eg. `com.you.app` `todo: does it need to be correct, or is it taken from ipa?`
 - `IosBundleVersion` can be 0. AppStoreConnect correctly uses the bundle version in the ipa
 - `IosBundleShortVersionString` can be 0. AppStoreConnect correctly uses the bundle version in the ipa `todo: is this the build number?`
