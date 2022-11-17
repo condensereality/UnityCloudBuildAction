@@ -15,6 +15,10 @@ import os
 import json
 
 
+# general timeout for http requests
+fetch_timeout_secs=30
+
+
 # setup logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s - %(message)s"
@@ -98,7 +102,7 @@ class UnityCloudBuildClient:
         resp = requests.get(
             f"{self.api_base_url}/orgs/{self.org_id}/projects",
             headers=self.prepare_headers(),
-            timeout=10
+            timeout=fetch_timeout_secs
         )
         if resp.status_code == 200:
             Projects = ", ".join(x["projectid"] for x in resp.json())
@@ -114,7 +118,7 @@ class UnityCloudBuildClient:
         resp = requests.get(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets",
             headers=self.prepare_headers(),
-            timeout=10
+            timeout=fetch_timeout_secs
         )
         if resp.status_code == 200:
             BuildTargets = ", ".join(x["buildtargetid"] for x in resp.json())
@@ -160,7 +164,7 @@ class UnityCloudBuildClient:
         resp = requests.get(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}",
             headers=self.prepare_headers(),
-            timeout=10
+            timeout=fetch_timeout_secs
         )
         if resp.status_code == 200:
             return resp.json()
@@ -252,7 +256,7 @@ class UnityCloudBuildClient:
                 f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets",
                 headers=self.prepare_headers(),
                 json=payload,
-                timeout=10
+                timeout=fetch_timeout_secs
             )
             if resp.status_code == 201:
                 data = resp.json()
@@ -322,7 +326,7 @@ class UnityCloudBuildClient:
         resp = requests.get(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}",
             headers=self.prepare_headers(),
-            timeout=10
+            timeout=fetch_timeout_secs
         )
         if resp.status_code == 200:
             data = resp.json()
@@ -351,7 +355,7 @@ class UnityCloudBuildClient:
         response = requests.post(
                             create_share_url,
                             headers=self.prepare_headers(),
-                            timeout=10,
+                            timeout=fetch_timeout_secs,
                             data=json.dumps(post_body)
         )
         if response.status_code != 200:
@@ -369,7 +373,7 @@ class UnityCloudBuildClient:
         response = requests.get(
                     share_meta_url,
                     headers=self.prepare_headers(),
-                    timeout=10
+                    timeout=fetch_timeout_secs
         )
 
         # responds with
