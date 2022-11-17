@@ -2,6 +2,12 @@
 # https://docs.github.com/en/actions/using-workflows/reusing-workflows
 name: Build With Unity Cloud
 
+env:
+  IosBundleId: "xxx" # todo: extract from ipa. altool doesn't seem to need this to be correct
+  IosBundleVersion: 0 # doesnt seem to need this to be correct. altool uses data in the ipa
+  IosBundleShortVersionString: "yyy" # doesnt seem to need this to be correct. altool uses data in the ipa
+
+
 on:
   workflow_call:
    inputs:
@@ -33,6 +39,12 @@ on:
      UnityCloudBuildApiKey:
        required: true
      SlackBotAuthToken: # passing this enables slack reporting
+       required: false
+     AppStoreConnect_Auth_Key:
+       required: false
+     AppStoreConnect_Auth_P8_Base64:
+       required: false
+     AppStoreConnect_Auth_Issuer:
        required: false
 
 jobs:
@@ -66,12 +78,45 @@ jobs:
         path: ${{ steps.build.outputs.ARTIFACT_PATH }}
         if-no-files-found: error     
       
+      
+      
+  UploadToTestFlight:
+    if: ${{ inputs.UploadToTestFlight }}
+    name: Upload to TestFlight
+    runs-on: macos-latest
+    needs: Build
+    env:
+      APPSTORECONNECT_AUTH_KEY: ${{ secrets.AppStoreConnect_Auth_Key }}
+      APPSTORECONNECT_AUTH_ISSUER: ${{ secrets.AppStoreConnect_Auth_Issuer }}
+      APPSTORECONNECT_AUTH_P8_BASE64: ${{ secrets.AppStoreConnect_Auth_P8_Base64 }}
+      ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
+      
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.ARTIFACT_FILENAME }}
+          
+      # put the authkey p8 in private_keys/ in the filename altool expects
+      - name: Get Auth Key.P8
+        # xxx.p8 no such file or directory, means you cannot pipe to a file in a directory that doesnt exist
+        run: |
+         mkdir -p ./private_keys
+         echo "$APPSTORECONNECT_AUTH_P8_BASE64" | base64 -d > ./private_keys/AuthKey_$APPSTORECONNECT_AUTH_KEY.p8
+
+      - name: Upload .ipa to TestFlight
+        run: xcrun altool --upload-app --file ${{ env.ARTIFACT_FILENAME }} --type ios --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
+         
+      
+      
+      
+      
   ReportToSlack:
    runs-on: ubuntu-22.04
    # can we force this to run (always()) AND only if channel is present?
    #if: ${{ inputs.SlackBotChannelId != '' }}
    if: always()
-   needs: [Build]
+   needs: [Build,UploadToTestFlight]
    steps:
     - name: Set SHARE_STRING env
       if: needs.Build.outputs.share_url != ''
@@ -86,7 +131,7 @@ jobs:
       uses: slackapi/slack-github-action@v1.23.0
       env:
        SLACK_BOT_TOKEN: ${{ secrets.SlackBotAuthToken }}
-       RESULT_STRING: ${{ needs.Build.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.Build.result }}
+       RESULT_STRING: ${{ needs.Build.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.Build.result }} (TestFlight: ${{ needs.UploadToTestFlight.result }})
        RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
        COMMIT_STRING: <${{ github.event.pull_request.url || github.event.head_commit.url }}|${{ github.event.pull_request.title || github.event.head_commit.message}}>
        
