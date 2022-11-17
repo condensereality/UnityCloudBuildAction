@@ -25,6 +25,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# make sure any files are written to the github workspace, in case the working directory is wrong
+GITHUB_WORKSPACE = os.getenv('GITHUB_WORKSPACE')
+# for local testing, could fall back to ./
+if not GITHUB_WORKSPACE:
+	raise Exception(f"GITHUB_WORKSPACE env variable is empty. Expecting this to be a directory")
 
 # write out meta back to workflow via github output vars
 github_output_filename = os.getenv('GITHUB_OUTPUT')
@@ -139,15 +144,22 @@ class UnityCloudBuildClient:
             try:
                 # todo: dont rename files. eg. android output is .apk, use that
                 filename = platform_default_artifact_filenames[self.target_platform]
-                p = Path("builds")
-                p.mkdir(exist_ok=True)
-                filepath = (p / filename)
+                # files must be written inside the GITHUB_WORKSPACE
+                filepath = Path( GITHUB_WORKSPACE ) / "artifacts" / filename
+                
+                if not filepath.is_relative_to(GITHUB_WORKSPACE):
+                    logger.info(f"Warning: filepath({filepath.absolute()} is not relative to GITHUB_WORKSPACE({GITHUB_WORKSPACE})")
+
+                directory = filepath.parent
+                directory.mkdir(parents=True,exist_ok=True)
                 filepath.write_bytes(resp.content)
             except IOError as exception:
-                logger.critical(f"Could not write built binary to disk {exception}")
+                logger.critical(f"Could not write built binary to disk: {exception}")
                 sys.exit(1)
 
-            meta = { "filename":filename, "filepath":filepath.absolute() }
+            # need to output a github_workspace relative path
+            workspacefilepath = str( filepath.relative_to(GITHUB_WORKSPACE) )
+            meta = { "filename":filename, "filepath":workspacefilepath}
             logger.info(f"Download to {meta['filepath']} successful!")
             return meta
             
