@@ -126,15 +126,23 @@ jobs:
       run: |
        echo "SHARE_STRING=:gift: $UNITY_CLOUD_BUILD_TARGET $SHARE_URL" >> "$GITHUB_ENV"
 
+    - name: Set TESTFLIGHTRESULT_STRING env
+      if: ${{ inputs.UploadToTestFlight }}
+      env:
+       TFRESULT_STRING: ${{ needs.UploadToTestFlight.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToTestFlight.result }}
+      run: |
+       echo "TESTFLIGHTRESULT_STRING="TestFlight $TFRESULT_STRING " >> "$GITHUB_ENV"
+
     - name: Notify Slack
       continue-on-error: true
       uses: slackapi/slack-github-action@v1.23.0
       env:
        SLACK_BOT_TOKEN: ${{ secrets.SlackBotAuthToken }}
-       RESULT_STRING: ${{ needs.Build.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.Build.result }} "TestFlight:" ${{ needs.UploadToTestFlight.result }}
+       RESULT_STRING: ${{ needs.Build.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.Build.result }}
        RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-       COMMIT_STRING: <${{ github.event.pull_request.url || github.event.head_commit.url }}|${{ github.event.pull_request.title || github.event.head_commit.message}}> ${{ github.ref_name }}
+       BRANCH_STRING: Branch `${{ github.ref_name }}`
+       COMMIT_STRING: <${{ github.event.pull_request.url || github.event.head_commit.url }}|${{ github.event.pull_request.title || github.event.head_commit.message}}>
        
       with:
        channel-id: ${{ inputs.SlackBotChannelId }}
-       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} \n:pencil2: ${{env.COMMIT_STRING}} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
+       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} ${{ env.TESTFLIGHTRESULT_STRING }} \n:pencil2: ${{env.COMMIT_STRING}} ${{ env.BRANCH_STRING }} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
