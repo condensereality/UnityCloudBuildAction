@@ -16,7 +16,7 @@ import json
 
 
 # general timeout for http requests
-fetch_timeout_secs=30
+fetch_timeout_secs=60
 
 
 # setup logging
