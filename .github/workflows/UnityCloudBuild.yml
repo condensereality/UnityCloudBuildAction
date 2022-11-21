@@ -69,6 +69,7 @@ jobs:
        unity_cloud_build_target_platform: ${{ inputs.UnityCloudTargetPlatform }}
        unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
        unity_cloud_build_create_share: ${{ inputs.ReportShareUrl }}
+       unity_cloud_build_github_head_ref: ${{ github.ref }}
     
     - name: Store binary as artifact
       if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}

@@ -74,15 +74,18 @@ class UnityCloudBuildClient:
         project_id: str,
         primary_build_target: str,
         target_platform: str,
-        github_head_ref: str = "",
+        github_head_ref: str,
+        allow_new_build_targets: bool,
     ) -> None:
-        """
-        If this action is being kicked off via a pull request, then ``github_head_ref`` var will
-        be set and this branch name will be used to generate a new unity build target to run the
-        build against changes in that branch. If this var is not present, then the action falls back
-        to the primary build target which is configured in the workflow itself and should point
-        at the target at references the ``main`` branch on our repository.
-        """
+        
+        # The github_head_ref is now always required, and will be checked against the default target's configuration
+        # new build targets will then be created, for pull requests, new branches, tags etc
+        self.branch_name = github_head_ref
+        self.branch_name = self.branch_name.replace("refs/heads/", "")
+        if not self.branch_name:
+            raise Exception($"No github_head_ref supplied, this is now required")
+        self.allow_new_build_targets = allow_new_build_targets
+
         logger.info("Setting up Unity Cloud Client...")
         self.api_base_url = "https://build-api.cloud.unity3d.com/api/v1"
         self.org_id = org_id.lower()
@@ -90,8 +93,6 @@ class UnityCloudBuildClient:
         self.target_platform = target_platform.lower()
         self.api_key = api_key
         self.primary_build_target_id = primary_build_target.lower()
-        self.pr_branch_name = github_head_ref
-        self.pr_branch_name = self.pr_branch_name.replace("refs/heads/", "")
 
     def prepare_headers(self) -> Dict:
         """
@@ -226,12 +227,21 @@ class UnityCloudBuildClient:
         # get primary build target so that we can copy across all relevant settings to our PR target
         # always fetch it, to validate if the user-input target id is correct
         primary_build_target = self.get_build_target(self.primary_build_target_id)
+        primary_build_branch = primary_build_target["settings"]["scm"]["branch"]
         
-        if self.pr_branch_name:
+        is_primary_build_target_branch_match = self.branch_name == primary_build_branch
+        
+        if not is_primary_build_target_branch_match:
+            logger.info(f"Building branch {self.branch_name} doesn't match primary build target branch {primary_build_branch}, creating new branch")
+            
+            # todo: find existing build target with matching branch name
+            # +? also match other configuration settings
+            if not self.allow_new_build_targets:
+                raise Exception(f"Creating new build targets not allowed")
 
             # replace any special chars and ensure length is max of 56 chars
             # 64 is the limit, but we allow some free chars for platform
-            branch_name = re.sub("[^0-9a-zA-Z]+", "-", self.pr_branch_name)[
+            branch_name = re.sub("[^0-9a-zA-Z]+", "-", self.branch_name)[
                 0:56
             ].lower()
             name = f"{self.target_platform}-{branch_name}"
@@ -262,7 +272,7 @@ class UnityCloudBuildClient:
                 payload.update(creds)
 
             # override payload settings with our PR branch name and remove any applied build schedules.
-            payload["settings"]["scm"]["branch"] = self.pr_branch_name
+            payload["settings"]["scm"]["branch"] = self.branch_name
             payload["settings"]["buildSchedule"] = {}
 
             # make the new build target
@@ -417,7 +427,6 @@ class UnityCloudBuildClient:
     type=bool,
     default=False,
 )
-@click.argument("github_head_ref", envvar="GITHUB_HEAD_REF", type=str, default="")
 @click.argument(
     "create_share",
     envvar="UNITY_CLOUD_BUILD_CREATE_SHARE",
@@ -430,6 +439,8 @@ class UnityCloudBuildClient:
     type=int,
     default=-1,
 )
+@click.argument("github_head_ref", envvar="GITHUB_HEAD_REF", type=str)
+@click.argument("allow_new_build_targets", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_BUILD_TARGETS", type=str, default=True)
 def main(
     api_key: str,
     org_id: str,
@@ -441,6 +452,7 @@ def main(
     github_head_ref: str,
     create_share: bool,
     existing_build_number: int,
+    allow_new_build_targets: bool,
 ) -> None:
 
     # validate incoming target platform
@@ -458,6 +470,7 @@ def main(
         primary_build_target,
         target_platform,
         github_head_ref,
+        allow_new_build_targets
     )
 
 
