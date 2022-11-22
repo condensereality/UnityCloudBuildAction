@@ -80,6 +80,9 @@ class UnityCloudBuildClient:
         allow_new_build_targets: bool,
     ) -> None:
         
+        if not github_head_ref:
+            raise Exception(f"Missing github head ref, now required")
+        
         # The github_head_ref is now always required, and will be checked against the default target's configuration
         # new build targets will then be created, for pull requests, new branches, tags etc
         self.branch_name = github_head_ref
@@ -442,7 +445,7 @@ class UnityCloudBuildClient:
     type=int,
     default=-1,
 )
-@click.option("--github_head_ref", envvar="GITHUB_HEAD_REF", type=str)
+@click.option("--github_head_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_HEAD_REF", type=str)
 @click.option("--allow_new_build_targets", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_BUILD_TARGETS", type=str, default=True)
 def main(
     api_key: str,
