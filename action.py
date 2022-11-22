@@ -37,13 +37,15 @@ github_env_filename = os.getenv('GITHUB_ENV')
 
 def write_github_output_and_env(key: str,value: str) -> None:
     
-    with open(github_output_filename, "a") as output:
-        output.write(f"{key}={value}\n")
-        logger.info(f"Wrote GITHUB_OUTPUT var {key}={value}")
+    if github_output_filename:
+        with open(github_output_filename, "a") as output:
+            output.write(f"{key}={value}\n")
+            logger.info(f"Wrote GITHUB_OUTPUT var {key}={value}")
     
-    with open(github_env_filename, "a") as env:
-        env.write(f"{key}={value}\n")
-        logger.info(f"Wrote GITHUB_ENV var {key}={value}")
+    if github_env_filename:
+        with open(github_env_filename, "a") as env:
+            env.write(f"{key}={value}\n")
+            logger.info(f"Wrote GITHUB_ENV var {key}={value}")
 
 
 # error script early if we can't write github env vars
