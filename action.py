@@ -85,7 +85,7 @@ class UnityCloudBuildClient:
         self.branch_name = github_head_ref
         self.branch_name = self.branch_name.replace("refs/heads/", "")
         if not self.branch_name:
-            raise Exception($"No github_head_ref supplied, this is now required")
+            raise Exception(f"No github_head_ref supplied, this is now required")
         self.allow_new_build_targets = allow_new_build_targets
 
         logger.info("Setting up Unity Cloud Client...")
