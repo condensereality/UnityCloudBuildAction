@@ -60,9 +60,6 @@ jobs:
     - name: Build with Unity Cloud Build
       uses: condensereality/UnityCloudBuildAction@v1.7.0
       id: build
-      env:
-       GITHUB_HEAD_REF: ${{ github.ref }}
-       
       with:
        unity_cloud_build_api_key: ${{ secrets.UnityCloudBuildApiKey }}
        unity_cloud_build_org_id: ${{ inputs.UnityCloudOrganisation }}
@@ -72,7 +69,7 @@ jobs:
        unity_cloud_build_target_platform: ${{ inputs.UnityCloudTargetPlatform }}
        unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
        unity_cloud_build_create_share: ${{ inputs.ReportShareUrl }}
-       unity_cloud_build_github_head_ref: ${{ env.GITHUB_HEAD_REF }} # github.ref directly here, yields an empty string
+       unity_cloud_build_github_head_ref: ${{ github.ref }}
     
     - name: Store binary as artifact
       if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
