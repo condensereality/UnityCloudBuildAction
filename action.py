@@ -86,7 +86,10 @@ class UnityCloudBuildClient:
         # The github_head_ref is now always required, and will be checked against the default target's configuration
         # new build targets will then be created, for pull requests, new branches, tags etc
         self.branch_name = github_head_ref
+        # need to strip branch name down to what will be passed to git clone --branch XXX in unity cloud build
+        self.branch_name = self.branch_name.replace("refs/tags/", "")
         self.branch_name = self.branch_name.replace("refs/heads/", "")
+        
         if not self.branch_name:
             raise Exception(f"No github_head_ref supplied, this is now required")
         self.allow_new_build_targets = allow_new_build_targets
