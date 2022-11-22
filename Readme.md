@@ -27,37 +27,34 @@ The action requires a series of inputs from the workflow file. These are then pa
 action then picks up and utilises to make relevant calls to Unity Cloud Build.
 
 ### `unity_cloud_build_api_key`
-
-**Required**  
+- `Required`  
 - The Unity Cloud Build API key. This can be found in the Unity Dashboard, under `Dev Ops`,`Cloud Build`,`Settings` 
 - See [https://build-api.cloud.unity3d.com/docs/1.0.0/index.html](https://build-api.cloud.unity3d.com/docs/1.0.0/index.html)
 - Store this API key as a `github action secret` and then use in the github action via `${{ secrets.NAME_OF_YOUR_SECRET }}`
 
 ### `unity_cloud_build_org_id`
-
-**Required**  
+- `Required`  
 - The Unity Cloud Build organisation ID 
 - this is can be found by [browsing your organisations](https://id.unity.com/en/organizations/) and finding the organisation name in any links/urls. (expected to be a string)
 - Organisation id's will fail if they have spaces, and UnityCloudBuild expects spaces to be replaced with dashes; https://forum.unity.com/threads/ucb-api-error-not-authorized-user-does-not-have-correct-permissions-to-perform-this-operation.730976/
 
 ### `unity_cloud_build_project_id`
-
-**Required**  
+- `Required`  
 - The Unity Cloud Build project ID
 - Unity will fail if the project id has spaces in it, these should be replaced with dashes
 - `My Project` has a project id of `my-project`
 
 ### `unity_cloud_build_primary_target`
-
-**Required**  - The Unity Cloud Build primary build target - this is build target name. (Find this via urls, expected to be without spaces)
+- `Required`  
+- The Unity Cloud Build primary build target - this is build target name. (Find this via urls, expected to be without spaces)
 
 ### `unity_cloud_build_target_platform`
-
-**Required**  - The Unity Cloud Build target platform - this is target build platform - currently either ``ios``, ``android`` or ``webgl``.
+- `Required`
+- The Unity Cloud Build target platform - this is target build platform - currently either ``ios``, ``android`` or ``webgl``.
 
 ### `unity_cloud_build_polling_interval`
-
-**Optional**  - The frequency with which to query Unity Cloud Build jobs - the default is ``60`` seconds.
+- `Optional
+- The frequency with which to query Unity Cloud Build jobs - the default is ``60`` seconds.
 
 ### `unity_cloud_build_download_binary`
 - `optional`
@@ -115,6 +112,7 @@ jobs:
           unity_cloud_build_target_platform: android
           unity_cloud_build_download_binary: false
           unity_cloud_build_create_share: true
+          unity_cloud_build_github_head_ref: ${{ github.ref }}
           
 ```
 
@@ -132,7 +130,7 @@ Running Action Locally
 On Macos;
 - `python3 pip install poetry`
 - `poetry install`
-- `poetry run python -m action API_KEY ORG_ID PROJECT_ID BUILD_TARGET ios`
+- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID --primary_build_target=BUILD_TARGET --target_platform=ios --github_head_ref=refs/head/main`
 
 
 

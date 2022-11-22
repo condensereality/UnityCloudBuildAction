@@ -229,6 +229,7 @@ class UnityCloudBuildClient:
         # get primary build target so that we can copy across all relevant settings to our PR target
         # always fetch it, to validate if the user-input target id is correct
         primary_build_target = self.get_build_target(self.primary_build_target_id)
+        logger.info(f"Primary Build Target Meta: {primary_build_target}")
         primary_build_branch = primary_build_target["settings"]["scm"]["branch"]
         
         is_primary_build_target_branch_match = self.branch_name == primary_build_branch
@@ -412,37 +413,37 @@ class UnityCloudBuildClient:
         
 
 @click.command()
-@click.argument("api_key", envvar="UNITY_CLOUD_BUILD_API_KEY", type=str)
-@click.argument("org_id", envvar="UNITY_CLOUD_BUILD_ORG_ID", type=str)
-@click.argument("project_id", envvar="UNITY_CLOUD_BUILD_PROJECT_ID", type=str)
-@click.argument("primary_build_target", envvar="UNITY_CLOUD_BUILD_PRIMARY_TARGET", type=str)
-@click.argument("target_platform", envvar="UNITY_CLOUD_BUILD_TARGET_PLATFORM", type=str)
-@click.argument(
-    "polling_interval",
+@click.option("--api_key", envvar="UNITY_CLOUD_BUILD_API_KEY", type=str)
+@click.option("--org_id", envvar="UNITY_CLOUD_BUILD_ORG_ID", type=str)
+@click.option("--project_id", envvar="UNITY_CLOUD_BUILD_PROJECT_ID", type=str)
+@click.option("--primary_build_target", envvar="UNITY_CLOUD_BUILD_PRIMARY_TARGET", type=str)
+@click.option("--target_platform", envvar="UNITY_CLOUD_BUILD_TARGET_PLATFORM", type=str)
+@click.option(
+    "--polling_interval",
     envvar="UNITY_CLOUD_BUILD_POLLING_INTERVAL",
     type=float,
     default=60.0,
 )
-@click.argument(
-    "download_binary",
+@click.option(
+    "--download_binary",
     envvar="UNITY_CLOUD_BUILD_DOWNLOAD_BINARY",
     type=bool,
     default=False,
 )
-@click.argument(
-    "create_share",
+@click.option(
+    "--create_share",
     envvar="UNITY_CLOUD_BUILD_CREATE_SHARE",
     type=bool,
     default=True,
 )
-@click.argument(
-    "existing_build_number",
+@click.option(
+    "--existing_build_number",
     envvar="UNITY_CLOUD_BUILD_USE_EXISTING_BUILD_NUMBER",
     type=int,
     default=-1,
 )
-@click.argument("github_head_ref", envvar="GITHUB_HEAD_REF", type=str)
-@click.argument("allow_new_build_targets", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_BUILD_TARGETS", type=str, default=True)
+@click.option("--github_head_ref", envvar="GITHUB_HEAD_REF", type=str)
+@click.option("--allow_new_build_targets", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_BUILD_TARGETS", type=str, default=True)
 def main(
     api_key: str,
     org_id: str,
