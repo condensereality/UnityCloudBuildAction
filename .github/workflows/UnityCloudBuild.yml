@@ -142,7 +142,7 @@ jobs:
       env:
        TFRESULT_STRING: ${{ needs.UploadToTestFlight.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToTestFlight.result }}
       run: |
-       echo "TESTFLIGHTRESULT_STRING="TestFlight $TFRESULT_STRING " >> "$GITHUB_ENV"
+       echo TESTFLIGHTRESULT_STRING="TestFlight $TFRESULT_STRING " >> "$GITHUB_ENV"
 
     - name: Notify Slack
       continue-on-error: true
