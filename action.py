@@ -228,10 +228,9 @@ class UnityCloudBuildClient:
     #    after=tenacity.after_log(logger, logging.DEBUG)
     #)
     def get_build_target_id(self) -> str:
-        """
-        Creates a new build target in Unity Cloud Build if we are dealing with a pull request.
-        Otherwise we return the primary build target (main)
-        """
+        # Creates a new build target in Unity Cloud Build if we are dealing with a pull request.
+        # Otherwise we return the primary build target (user's original configuration)
+	
         # get primary build target so that we can copy across all relevant settings to our PR target
         # always fetch it, to validate if the user-input target id is correct
         primary_build_target = self.get_build_target(self.primary_build_target_id)
@@ -241,27 +240,27 @@ class UnityCloudBuildClient:
         is_primary_build_target_branch_match = self.branch_name == primary_build_branch
         
         if not is_primary_build_target_branch_match:
-            logger.info(f"Building branch {self.branch_name} doesn't match primary build target branch {primary_build_branch}, creating new branch")
+            logger.info(f"Building branch {self.branch_name} doesn't match primary build target branch {primary_build_branch}, creating new target")
             
-            # todo: find existing build target with matching branch name
-            # +? also match other configuration settings
+            # todo: find existing build target with matching branch name, with matching configuration settings?
             if not self.allow_new_build_targets:
                 raise Exception(f"Creating new build targets not allowed")
 
             # replace any special chars and ensure length is max of 56 chars
             # 64 is the limit, but we allow some free chars for platform
-            branch_name = re.sub("[^0-9a-zA-Z]+", "-", self.branch_name)[
-                0:56
-            ].lower()
-            name = f"{self.target_platform}-{branch_name}"
+            # todo: just do 64-(prefix-length)
+            new_target_name = re.sub("[^0-9a-zA-Z]+", "-", self.branch_name)
+            new_target_name = f"{self.primary_build_target_id}-{new_target_name}"
+            # 64 char limit for targets (citation needed)
+            new_target_name = new_target_name[:63]
+            # targets must be lower case
+            new_target_name = new_target_name.lower()
 
-            logger.info(
-                f"Creating a build target for {self.project_id} for PR branch: {name}..."
-            )
+            logger.info(f"Creating new build target({new_target_name}) for {self.project_id} for branch {self.branch_name}...")
 
             # setup new payload copying relevant settings from the primary build target
             payload = {
-                "name": name,
+                "name": new_target_name,
                 "enabled": True,
                 "platform": primary_build_target["platform"],
                 "settings": primary_build_target["settings"],
@@ -304,13 +303,11 @@ class UnityCloudBuildClient:
                     error
                     and error == "Build target name already in use for this project!"
                 ):
-                    logger.info(
-                        f"Build target for this PR already exists: {name}. Re-using..."
-                    )
-                    return name
+                    logger.info(f"Build target for this PR already exists: {new_target_name}. Re-using...")
+                    return new_target_name
             raise Exception(f"Build target could not be created - received status={resp.status_code} content={resp.text}")
 
-        # otherwise return the primary build target (main branch)
+        # otherwise return the primary build target (user's original configuration)
         return self.primary_build_target_id
 
     @tenacity.retry(
