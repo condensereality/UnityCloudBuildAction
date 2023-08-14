@@ -76,22 +76,42 @@ class UnityCloudBuildClient:
         project_id: str,
         primary_build_target: str,
         target_platform: str,
+        github_branch_ref: str,
         github_head_ref: str,
+        github_commit_sha: str,
         allow_new_build_targets: bool,
     ) -> None:
         
-        if not github_head_ref:
-            raise Exception(f"Missing github head ref, now required")
-        
-        # The github_head_ref is now always required, and will be checked against the default target's configuration
+        if not github_branch_ref:
+            raise Exception(f"Missing github_branch_ref. required")
+
+        self.is_pull_request = github_branch_ref.startswith("refs/pull/")
+
+        # The github_branch_ref is now always required, and will be checked against the default target's configuration
         # new build targets will then be created, for pull requests, new branches, tags etc
-        self.branch_name = github_head_ref
+        self.branch_ref = github_branch_ref
+        self.commit_sha = github_commit_sha
+        self.head_ref = github_head_ref or ""
+        
         # need to strip branch name down to what will be passed to git clone --branch XXX in unity cloud build
+        # gr: unity runs git clone --branch xxxx
+        #		it does work for tags --branch v0.0.1
+        #		this does NOT work for pull requests; refs/pull/6/merge; refs/tag/xxx
+        #		for pull requests, we need to use head_ref
+        self.branch_name = self.branch_ref
         self.branch_name = self.branch_name.replace("refs/tags/", "")
         self.branch_name = self.branch_name.replace("refs/heads/", "")
-        
-        if not self.branch_name:
-            raise Exception(f"No github_head_ref supplied, this is now required")
+        self.branch_name = self.branch_name.replace("refs/pull/", "pull request ")
+        # strip /merge from refs/pull/666/merge to be pretty
+        if self.is_pull_request:
+            self.branch_name = self.branch_name.replace("/merge", "")
+
+        # strip the head ref down to a branch, in case we use it
+        self.head_ref = self.head_ref.replace("refs/heads/", "")
+
+        if self.is_pull_request and not self.head_ref:
+            raise Exception(f"Detected pull request from {github_branch_ref} but missing github_head_ref '{self.head_ref}' which should be the source branch")
+
         self.allow_new_build_targets = allow_new_build_targets
 
         logger.info("Setting up Unity Cloud Client...")
@@ -280,7 +300,12 @@ class UnityCloudBuildClient:
                 payload.update(creds)
 
             # override payload settings with our PR branch name and remove any applied build schedules.
-            payload["settings"]["scm"]["branch"] = self.branch_name
+            # gr: if branch is refs/pull/XX/[merge|head], this will fail as unity will do git clone -branch refs/pull/6/merge which
+            #		isn't possible. So we need to checkout the commit (or head of PR branch?) instead
+            if self.is_pull_request:
+                payload["settings"]["scm"]["branch"] = self.head_ref
+            else:
+                payload["settings"]["scm"]["branch"] = self.branch_name
             payload["settings"]["buildSchedule"] = {}
 
             # make the new build target
@@ -445,7 +470,9 @@ class UnityCloudBuildClient:
     type=int,
     default=-1,
 )
+@click.option("--github_branch_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_BREANCH_REF", type=str)
 @click.option("--github_head_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_HEAD_REF", type=str)
+@click.option("--github_commit_sha", envvar="UNITY_CLOUD_BUILD_GITHUB_COMMIT_SHA", type=str)
 @click.option("--allow_new_build_targets", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_BUILD_TARGETS", type=str, default=True)
 def main(
     api_key: str,
@@ -455,7 +482,9 @@ def main(
     target_platform: str,
     polling_interval: float,
     download_binary: bool,
+    github_branch_ref: str,
     github_head_ref: str,
+    github_commit_sha: str,
     create_share: bool,
     existing_build_number: int,
     allow_new_build_targets: bool,
@@ -475,7 +504,9 @@ def main(
         project_id,
         primary_build_target,
         target_platform,
+        github_branch_ref,
         github_head_ref,
+        github_commit_sha,
         allow_new_build_targets
     )
 

@@ -69,7 +69,12 @@ jobs:
        unity_cloud_build_target_platform: ${{ inputs.UnityCloudTargetPlatform }}
        unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
        unity_cloud_build_create_share: ${{ inputs.ReportShareUrl }}
-       unity_cloud_build_github_head_ref: ${{ github.ref }}
+       # github.ref is the fully formed ref, eg refs/pull/6/merge or refs/tag/v0.1.2
+       # github.head_ref is present in pull requests, and is the SOURCE branch (eg. YourFeatureBranch)
+       # github.base_ref is present in pull requests, and is the TARGET branch (eg. main)
+       unity_cloud_build_github_branch_ref: ${{ github.ref }}
+       unity_cloud_build_github_head_ref: ${{ github.head_ref }}
+       unity_cloud_build_github_commit_sha: ${{ github.sha }}
     
     - name: Store binary as artifact
       if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}

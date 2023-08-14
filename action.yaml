@@ -30,9 +30,15 @@ inputs:
   unity_cloud_build_use_existing_build_number:
     description: 'Force the process to use an existing build number instead of starting a new build'
     required: false
-  unity_cloud_build_github_head_ref:
-    description: 'github branch reference to build. This will create new build targets if the branch differs from the default target, to support pull requests and tags'
+  unity_cloud_build_github_branch_ref:
+    description: 'github branch reference to build (github.ref). This will create new build targets if the branch differs from the default target, to support pull requests and tags'
     required: true
+  unity_cloud_build_github_head_ref:
+    description: 'github.head_ref; only on pull requests and is the source branch; https://docs.github.com/en/actions/learn-github-actions/contexts'
+    required: false
+  unity_cloud_build_github_commit_sha:
+    description: 'github.sha; hash of the commit for this build'
+    required: false
   unity_cloud_build_allow_new_build_targets:
     description: 'Set this to false to disable creation of new build targets.'
     required: false
@@ -50,5 +56,7 @@ runs:
     UNITY_CLOUD_BUILD_DOWNLOAD_BINARY: ${{ inputs.unity_cloud_build_download_binary }}
     UNITY_CLOUD_BUILD_CREATE_SHARE: ${{ inputs.unity_cloud_build_create_share }}
     UNITY_CLOUD_BUILD_USE_EXISTING_BUILD_NUMBER: ${{ inputs.unity_cloud_build_use_existing_build_number }}
+    UNITY_CLOUD_BUILD_GITHUB_BRANCH_REF: ${{ inputs.unity_cloud_build_github_branch_ref }}
     UNITY_CLOUD_BUILD_GITHUB_HEAD_REF: ${{ inputs.unity_cloud_build_github_head_ref }}
+    UNITY_CLOUD_BUILD_GITHUB_COMMIT_SHA: ${{ inputs.unity_cloud_build_github_commit_sha }}
     UNITY_CLOUD_BUILD_ALLOW_NEW_BUILD_TARGETS: ${{ inputs.unity_cloud_build_allow_new_build_targets }}

@@ -130,7 +130,8 @@ Running Action Locally
 On Macos;
 - `python3 pip install poetry`
 - `poetry install`
-- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID --primary_build_target=BUILD_TARGET --target_platform=ios --github_head_ref=refs/head/main`
+- `export GITHUB_WORKSPACE=./Workspace`
+- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID --primary_build_target=BUILD_TARGET --target_platform=ios --github_branch_ref=refs/head/main`
 
 
 
