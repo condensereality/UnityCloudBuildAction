@@ -84,6 +84,16 @@ class UnityCloudClient:
         data = response.json()
         return data
 
+    def post_request(self, api_url: str, post_body:Dict) -> Dict:
+        headers = self.get_request_headers()
+        url = f"{self.api_request_base_url}{api_url}"
+        response = requests.post( url, headers=headers, timeout=fetch_timeout_secs, data=json.dumps(post_body) )
+        
+        if response.status_code != 200:
+            raise Exception(f"Request failed with status {response.status_code} content={response.text} with url={url}")
+        data = response.json()
+        return data
+
     # List all the projects org. This is essentially to verify input settings
     def list_projects(self) -> Dict:
         logger.info(f"Fetching projects for {self.org_id}...")
@@ -140,6 +150,27 @@ class UnityCloudClient:
                 
         logger.info(f"Build {project_id}/{build_target_id}/{build_number} is still running: {status}; meta={build_meta}")
         return None
+
+    def get_share_url_from_share_id(self, share_id:str ) -> str:
+        return f"https://developer.cloud.unity3d.com/share/share.html?shareId={share_id}"
+
+    def create_share_url(self, project_id:str, build_target_id: str,build_number: int) -> str:
+        # if a share already exists for this build, it will be revoked and a new one created (note: same url as GET share meta)
+        create_share_url = f"/projects/{project_id}/buildtargets/{build_target_id}/builds/{build_number}/share"
+        post_body = {'shareExpiry':''}
+        share_meta = self.post_request( create_share_url, post_body )
+        logger.info(f"Created share {share_meta}")
+        return self.get_share_url_from_share_id( share_meta["shareid"] )
+    
+    
+    def get_share_url(self, project_id:str, build_target_id: str,build_number: int) -> str:
+        # fetch share id
+        share_meta = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_id}/builds/{build_number}/share")
+        # responds with
+        # 200{ "shareid": "-1k77srZTd",	"shareExpiry": "2022-11-30T11:57:53.448Z" }
+        # 404 Error: No share found.
+        return self.get_share_url_from_share_id( share_meta["shareid"] )
+        
         
         
         
@@ -345,45 +376,6 @@ class UnityCloudBuilder:
 
 
 
-    def get_share_url_from_share_id(self, share_id:str ) -> str:
-        return f"https://developer.cloud.unity3d.com/share/share.html?shareId={share_id}"
-
-    def create_share_url(self, build_target_id: str,build_number: int) -> str:
-        # if a share already exists for this build, it will be revoked and a new one created (note: same url as GET share meta)
-        create_share_url = f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}/share"
-        post_body = {'shareExpiry':''}
-        response = requests.post(
-                            create_share_url,
-                            headers=self.prepare_headers(),
-                            timeout=fetch_timeout_secs,
-                            data=json.dumps(post_body)
-        )
-        if response.status_code != 200:
-            raise Exception(f"Failed to get create share for build - http status={response.status_code} content={response.text}")
-            
-        share_meta = response.json()
-        logger.info(f"Created share - received status={response.status_code} content={response.text}")
-        return self.get_share_url_from_share_id( share_meta["shareid"] )
-
-    
-    
-    def get_share_url(self, build_target_id: str,build_number: int) -> str:
-        # fetch share id
-        share_meta_url = f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}/share",
-        response = requests.get(
-                    share_meta_url,
-                    headers=self.prepare_headers(),
-                    timeout=fetch_timeout_secs
-        )
-
-        # responds with
-        # 200{ "shareid": "-1k77srZTd",	"shareExpiry": "2022-11-30T11:57:53.448Z" }
-        # 404 Error: No share found.
-        if response.status_code != 200:
-            raise Exception(f"Failed to get share meta from {share_meta_url} - http status={response.status_code} content={response.text}")
-        share_meta = response.json()
-        return self.get_share_url_from_share_id( share_meta["shareid"] )
-        
 
 
 def download_file_to_workspace(url: str) -> Dict:
@@ -600,7 +592,7 @@ def main(
 
     # print out any sharing info to env var
     if create_share:
-        share_url = client.create_share_url(build_target_id, build_number)
+        share_url = client.create_share_url( project_id, build_target_id, build_number )
         logger.info(f"Got sharing url {share_url}")
         write_github_output_and_env("SHARE_URL", share_url)
             
