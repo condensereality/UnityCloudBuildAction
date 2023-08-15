@@ -52,18 +52,6 @@ def write_github_output_and_env(key: str,value: str) -> None:
 # error script early if we can't write github env vars
 write_github_output_and_env("github_output_test_key","test_value")
 
-# hardcoded meta for platforms
-# todo: remove these as they're not always correct.
-#	infer filename from download url.
-#	We already handle any filename in the output via ARTIFACT_FILEPATH
-platform_default_artifact_filenames = {
-  'ios':'Ios.ipa',
-  'android':'Android.aab', # often is apk
-  'webgl':'Webgl.zip',
-  'windows':'Windows.zip',
-  'mac':'Mac.app.zip',
-  'linux':'Linux.zip',	# gr: probably not correct, update after a successfull build
-}
 
 # client that just connects to unity cloud build
 class UnityCloudClient:
@@ -162,7 +150,6 @@ class UnityCloudBuilder:
         client: UnityCloudClient,
         project_id: str,
         primary_build_target: str,
-        target_platform: str,
         github_branch_ref: str,
         github_head_ref: str,
         github_commit_sha: str,
@@ -203,7 +190,6 @@ class UnityCloudBuilder:
 
         logger.info("Setting up Unity Cloud Client...")
         self.project_id = project_id.lower()
-        self.target_platform = target_platform.lower()
         self.primary_build_target_id = primary_build_target.lower()
         self.client = client
 
@@ -293,20 +279,8 @@ class UnityCloudBuilder:
                 "enabled": True,
                 "platform": primary_build_target["platform"],
                 "settings": primary_build_target["settings"],
+                "credentials": primary_build_target["credentials"],
             }
-
-            # if building for ios or android, apply signing credentials
-            if self.target_platform in ["android", "ios"]:
-                creds = {
-                    "credentials": {
-                        "signing": {
-                            "credentialid": primary_build_target["credentials"][
-                                "signing"
-                            ]["credentialid"]
-                        }
-                    }
-                }
-                payload.update(creds)
 
             # override payload settings with our PR branch name and remove any applied build schedules.
             # gr: if branch is refs/pull/XX/[merge|head], this will fail as unity will do git clone -branch refs/pull/6/merge which
@@ -454,7 +428,6 @@ def create_new_build(
     client: UnityCloudClient,
     project_id: str,
     primary_build_target: str,
-    target_platform: str,
     polling_interval: float,
     github_branch_ref: str,
     github_head_ref: str,
@@ -462,19 +435,11 @@ def create_new_build(
     allow_new_target: bool,
 ) -> Dict:
 
-    # gr: remove the need for target platform and get from target meta
-    # validate incoming target platform
-    target_platform = (target_platform or "").lower()
-    if target_platform not in platform_default_artifact_filenames.keys():
-        platform_list = ", ".join(x for x in platform_default_artifact_filenames.keys())
-        raise Exception(f"Target platform must be one of {platform_list}")
-
     # create unity cloud build client
     builder: UnityCloudBuilder = UnityCloudBuilder(
         client,
         project_id,
         primary_build_target,
-        target_platform,
         github_branch_ref,
         github_head_ref,
         github_commit_sha,
@@ -494,16 +459,6 @@ def create_new_build(
         sys.exit(1)
 
     if build_target_id != primary_build_target:
-        # set build platform env var for the PR build target
-        try:
-            builder.set_build_target_env_var(
-                build_target_id, "BUILD_PLATFORM", target_platform
-            )
-        except tenacity.RetryError:
-            logger.critical(
-                f"Unable to set env var BUILD_PLATFORM={target_platform} on {build_target_id} after 10 attempts!"
-            )
-            sys.exit(1)
 
         # create a new build for the specified build target
         try:
@@ -523,7 +478,6 @@ def create_new_build(
 @click.option("--org_id", envvar="UNITY_CLOUD_BUILD_ORG_ID", type=str)
 @click.option("--project_id", envvar="UNITY_CLOUD_BUILD_PROJECT_ID", type=str)
 @click.option("--primary_build_target", envvar="UNITY_CLOUD_BUILD_PRIMARY_TARGET", type=str)
-@click.option("--target_platform", envvar="UNITY_CLOUD_BUILD_TARGET_PLATFORM", type=str)
 @click.option(
     "--polling_interval",
     envvar="UNITY_CLOUD_BUILD_POLLING_INTERVAL",
@@ -557,7 +511,6 @@ def main(
     org_id: str,
     project_id: str,
     primary_build_target: str,
-    target_platform: str,
     polling_interval: float,
     download_binary: bool,
     github_branch_ref: str,
@@ -571,8 +524,6 @@ def main(
     # sanitise some inputs
     if project_id:
         project_id = project_id.lower()
-    if target_platform:
-        target_platform = target_platform.lower()
     if primary_build_target:
         primary_build_target = primary_build_target.lower()
 
@@ -620,7 +571,6 @@ def main(
             client,
             project_id,
             primary_build_target,
-            target_platform,
             polling_interval,
             github_branch_ref,
             github_head_ref,
