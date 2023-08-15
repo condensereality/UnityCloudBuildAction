@@ -119,7 +119,41 @@ class UnityCloudClient:
         logger.info(f"Got project {project_id} build targets; {build_targets_string}")
         return build_targets
 
+            
+    def get_build_meta(self, project_id: str, build_target_id: str, build_number: int) -> None:
+        #	gets the status of the running build, returns None if non-error (timeout)
+        logger.info(f"Checking status of build {project_id}/{build_target_id}/{build_number}...")
+        try:
+            data = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_id}/builds/{build_number}")
+            return data
+        except requests.exceptions.Timeout:
+            logger.info(f"get_build_meta() timeout...")
+            return None
+        
+    def get_successfull_build_meta(self, project_id: str, build_target_id: str, build_number: int) -> None:
+        #	get build status of a build, but throw if it's failed
+        #	Build status returned can be one of the below
+        #	[queued, sentToBuilder, started, restarted, success, failure, canceled, unknown]
+        #	We class "failure", "cancelled" and "unknown" as failures and return exit code 1.
+        #	We class "success" as successful
+        #	All other statuses, we return no info back (None)
+        build_meta = self.get_build_meta( project_id, build_target_id, build_number )
+        failed_statuses = ["failure", "canceled", "cancelled", "unknown"]
+        success_statuses = ["success"]
+        status = build_meta["buildStatus"]
 
+        if status in failed_statuses:
+            raise Exception(f"Build {project_id}/{build_target_id}/{build_number} failed with status: {status}; meta={build_meta}")
+
+        if status in success_statuses:
+            logger.info(f"Build {project_id}/{build_target_id}/{build_number} completed successfully!")
+            return build_meta
+                
+        logger.info(f"Build {project_id}/{build_target_id}/{build_number} is still running: {status}; meta={build_meta}")
+        return None
+        
+        
+        
 # Handles build target setup & build execution to a client
 class UnityCloudBuilder:
     def __init__(
@@ -171,13 +205,6 @@ class UnityCloudBuilder:
         self.target_platform = target_platform.lower()
         self.primary_build_target_id = primary_build_target.lower()
         self.client = client
-
-
-
-
-
-
-
 
     def download_artifact(self, url: str) -> None:
         logger.info(f"Downloading built binary to workspace... {url}")
@@ -372,36 +399,7 @@ class UnityCloudBuilder:
             f"Build could not be started - received a HTTP {resp.status_code}"
         )
 
-    @tenacity.retry(
-        wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
-        stop=tenacity.stop_after_attempt(10),
-    )
-    def get_build_status(self, build_target_id: str, build_number: int) -> None:
-        """
-        Gets the status of the running build
 
-        Build status returned can be one of the below
-        [queued, sentToBuilder, started, restarted, success, failure, canceled, unknown]
-
-        We class "failure", "cancelled" and "unknown" as failures and return exit code 1.
-        We class "success" as successful and return exit code 0
-        All other statuses, we continue to poll.
-        """
-        logger.info(f"Checking status of build {build_number}...")
-        failed_statuses = ["failure", "canceled", "cancelled", "unknown"]
-        success_statuses = ["success"]
-        data = self.client.send_request(f"/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}")
-        status = data["buildStatus"]
-
-        if status in failed_statuses:
-            raise Exception(f"Build {build_number} on project {self.project_id} on target {build_target_id} failed with status: {status}")
-
-        if status in success_statuses:
-            logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} completed successfully!")
-            return data
-                
-        logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} is still running: {status}")
-        return
 
     def get_share_url_from_share_id(self, share_id:str ) -> str:
         return f"https://developer.cloud.unity3d.com/share/share.html?shareId={share_id}"
@@ -443,6 +441,77 @@ class UnityCloudBuilder:
         return self.get_share_url_from_share_id( share_meta["shareid"] )
         
 
+
+# start a new build and return the build number for monitoring
+def create_new_build(
+    client: UnityCloudClient,
+    project_id: str,
+    primary_build_target: str,
+    target_platform: str,
+    polling_interval: float,
+    github_branch_ref: str,
+    github_head_ref: str,
+    github_commit_sha: str,
+    allow_new_target: bool,
+) -> int:
+
+
+    # gr: remove the need for target platform and get from target meta
+    # validate incoming target platform
+    target_platform = (target_platform or "").lower()
+    if target_platform not in platform_default_artifact_filenames.keys():
+        platform_list = ", ".join(x for x in platform_default_artifact_filenames.keys())
+        raise Exception(f"Target platform must be one of {platform_list}")
+
+    # create unity cloud build client
+    builder: UnityCloudBuilder = UnityCloudBuilder(
+        client,
+        project_id,
+        primary_build_target,
+        target_platform,
+        github_branch_ref,
+        github_head_ref,
+        github_commit_sha,
+        allow_new_build_targets
+    )
+    client = builder
+
+
+
+        
+    # obtain the build target we need to run against
+    try:
+        build_target_id: str = builder.get_build_target_id()
+        logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
+    except BaseException as exception:
+        logger.critical(f"Unable to obtain unity build target; {exception}")
+        sys.exit(1)
+
+    if build_target_id != primary_build_target:
+        # set build platform env var for the PR build target
+        try:
+            builder.set_build_target_env_var(
+                build_target_id, "BUILD_PLATFORM", target_platform
+            )
+        except tenacity.RetryError:
+            logger.critical(
+                f"Unable to set env var BUILD_PLATFORM={target_platform} on {build_target_id} after 10 attempts!"
+            )
+            sys.exit(1)
+
+        # create a new build for the specified build target
+        try:
+            build_number = builder.start_build(build_target_id)
+            logger.info(f"Started build number {build_number}")
+        except tenacity.RetryError:
+            logger.critical(
+                f"Unable to start unity build {build_target_id} after 10 attempts!"
+            )
+            sys.exit(1)
+
+
+
+
 @click.command()
 @click.option("--api_key", envvar="UNITY_CLOUD_BUILD_API_KEY", type=str)
 @click.option("--org_id", envvar="UNITY_CLOUD_BUILD_ORG_ID", type=str)
@@ -465,7 +534,7 @@ class UnityCloudBuilder:
     "--create_share",
     envvar="UNITY_CLOUD_BUILD_CREATE_SHARE",
     type=bool,
-    default=True,
+    default=False,
 )
 @click.option(
     "--existing_build_number",
@@ -493,6 +562,15 @@ def main(
     allow_new_build_targets: bool
 ) -> None:
 
+    # sanitise some inputs
+    if project_id:
+        project_id = project_id.lower()
+    if target_platform:
+        target_platform = target_platform.lower()
+    if primary_build_target:
+        primary_build_target = primary_build_target.lower()
+
+
     client: UnityCloudClient = UnityCloudClient(
         api_key,
         org_id
@@ -500,6 +578,15 @@ def main(
 
     # to help users and for debug, just list all projects
     projects = client.list_projects()
+
+
+    # when we have an existing build number, we don't need a lot of the other meta
+    # but we do need the project it belongs to
+    # do this AFTER listing projects, so user can see a project id they might be looking for
+    # todo: if user supplied build number AND other meta, validate that meta and throw if there's a mismatch
+    if existing_build_number != None and project_id == None:
+        raise Exception(f"existing_build_number({existing_build_number}) supplied, but missing required project_id({project_id})")
+
     # if the user has provided a project, list it's build targets, otherwise, list em all!
     if project_id:
         client.list_build_targets( project_id )
@@ -507,87 +594,47 @@ def main(
         for project in projects:
             client.list_build_targets( project )
 
-    return
-    
+    if existing_build_number != None and primary_build_target == None:
+        raise Exception(f"existing_build_number({existing_build_number}) supplied, but missing required primary_build_target({primary_build_target})")
 
+
+    # get variables we're eventually going to use
+    build_number = None
+    build_target_id = None
+    
     # when we have an existing build number, we don't need a lot of the other meta
     # todo: if user supplied build number AND other meta, validate that meta and throw if there's a mismatch
     if existing_build_number != None:
-       logger.info(f"Checking build number {existing_build_number}")
+       build_number = existing_build_number
+       build_target_id = primary_build_target
+       logger.info(f"Using existing build target/number {build_target_id}/{build_number}...")
        
     else:
-        # gr: remove the need for target platform and get from target meta
-        # validate incoming target platform
-        target_platform = (target_platform or "").lower()
-        if target_platform not in platform_default_artifact_filenames.keys():
-            platform_list = ", ".join(x for x in platform_default_artifact_filenames.keys())
-            logger.critical(f"Target platform must be one of {platform_list}")
-            sys.exit(1)
-
-    # create unity cloud build client
-    builder: UnityCloudBuilder = UnityCloudBuilder(
-        api_key,
-        org_id,
-        project_id,
-        primary_build_target,
-        target_platform,
-        github_branch_ref,
-        github_head_ref,
-        github_commit_sha,
-        allow_new_build_targets
-    )
-    client = builder
-
-        
-    # obtain the build target we need to run against
-    try:
-        build_target_id: str = builder.get_build_target_id()
-        logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
-    except BaseException as exception:
-        logger.critical(f"Unable to obtain unity build target; {exception}")
-        sys.exit(1)
-
-    if build_target_id != primary_build_target:
-        # set build platform env var for the PR build target
-        try:
-            builder.set_build_target_env_var(
-                build_target_id, "BUILD_PLATFORM", target_platform
+        build_meta = create_new_build(
+            client,
+            project_id,
+            primary_build_target,
+            target_platform,
+            polling_interval,
+            github_branch_ref,
+            github_head_ref,
+            github_commit_sha,
+            allow_new_build_targets
             )
-        except tenacity.RetryError:
-            logger.critical(
-                f"Unable to set env var BUILD_PLATFORM={target_platform} on {build_target_id} after 10 attempts!"
-            )
-            sys.exit(1)
-            
-    # for testing, use existing build number
-    if existing_build_number >= 0:
-        logger.info(f"Using existing build number {existing_build_number}")
-        build_number = existing_build_number
-    else:
-        # create a new build for the specified build target
-        try:
-            build_number = builder.start_build(build_target_id)
-            logger.info(f"Started build number {build_number}")
-        except tenacity.RetryError:
-            logger.critical(
-                f"Unable to start unity build {build_target_id} after 10 attempts!"
-            )
-            sys.exit(1)
+        build_number = build_meta["build_number"]
+        build_target_id = build_meta["build_target_id"]
 
     # poll the running build for updates waiting for an polling interval between each poll
     while True:
-        try:
-            build_meta = client.get_build_status(build_target_id, build_number)
-            # build meta is returned once the build succeeds
-            if build_meta:
-                break
-        except tenacity.RetryError as exception:
-            logger.critical(f"Unable to check status unity build {build_target_id} {build_number} after 10 attempts! {exception}")
-            sys.exit(1)
+        # todo: make this function print out erroring logs
+        build_meta = client.get_successfull_build_meta( project_id, build_target_id, build_number )
+        # build meta is returned once the build succeeds
+        if build_meta:
+            break
         logger.info(f"Waiting {polling_interval} seconds...")
         time.sleep(polling_interval)
 
-    logger.info(f"Build completed successfull; {build_meta}")
+    #logger.info(f"Build completed successfully; {build_meta}")
     
     # Build finished successfully
     if download_binary:
