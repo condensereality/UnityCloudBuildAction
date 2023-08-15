@@ -181,7 +181,7 @@ jobs:
    # can we force this to run (always()) AND only if channel is present?
    #if: ${{ inputs.SlackBotChannelId != '' }}
    if: always()
-   needs: [Build,UploadToTestFlight]
+   needs: [Build,UploadToTestFlight,UploadToOculusReleaseChannel]
    steps:
     - name: Set SHARE_STRING env
       if: needs.Build.outputs.share_url != ''
