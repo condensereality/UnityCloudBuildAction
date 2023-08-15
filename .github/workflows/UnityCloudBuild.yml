@@ -37,6 +37,7 @@ on:
        type: boolean
      OculusReleaseChannel:
        required: false
+       type: string
      SlackBotChannelId:
        required: false
        type: string
@@ -157,6 +158,8 @@ jobs:
 
       - name: Install ovr-platform-util
         uses: RageAgainstThePixel/setup-ovr-platform-util@v1
+
+      - name: Check ovr-platform-util
         run: |
          ovr-platform-util version
 
