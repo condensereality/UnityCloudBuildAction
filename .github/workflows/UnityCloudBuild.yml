@@ -73,7 +73,7 @@ jobs:
     steps:
     
     - name: Build with Unity Cloud Build
-      uses: condensereality/UnityCloudBuildAction@SimplerClient
+      uses: condensereality/UnityCloudBuildAction@main
       id: build
       with:
        unity_cloud_build_api_key: ${{ secrets.UnityCloudBuildApiKey }}
