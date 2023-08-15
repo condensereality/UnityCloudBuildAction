@@ -61,6 +61,7 @@ platform_default_artifact_filenames = {
   'webgl':'Webgl.zip',
   'windows':'Windows.zip',
   'mac':'Mac.app.zip',
+  'linux':'Linux.zip',	# gr: probably not correct, update after a successfull build
 }
 
 
