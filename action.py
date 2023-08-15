@@ -184,7 +184,7 @@ class UnityCloudBuilder:
         github_branch_ref: str,
         github_head_ref: str,
         github_commit_sha: str,
-        allow_new_build_targets: bool,
+        allow_new_target: bool,
     ) -> None:
         
         if not github_branch_ref:
@@ -217,7 +217,7 @@ class UnityCloudBuilder:
         if self.is_pull_request and not self.head_ref:
             raise Exception(f"Detected pull request from {github_branch_ref} but missing github_head_ref '{self.head_ref}' which should be the source branch")
 
-        self.allow_new_build_targets = allow_new_build_targets
+        self.allow_new_target = allow_new_target
 
         logger.info("Setting up Unity Cloud Client...")
         self.project_id = project_id.lower()
@@ -289,7 +289,7 @@ class UnityCloudBuilder:
             logger.info(f"Building branch {self.branch_name} doesn't match primary build target branch {primary_build_branch}, creating new target")
             
             # todo: find existing build target with matching branch name, with matching configuration settings?
-            if not self.allow_new_build_targets:
+            if not self.allow_new_target:
                 raise Exception(f"Creating new build targets not allowed")
 
             # replace any special chars and ensure length is max of 56 chars
@@ -497,7 +497,7 @@ def create_new_build(
 @click.option("--github_branch_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_BRANCH_REF", type=str)
 @click.option("--github_head_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_HEAD_REF", type=str)
 @click.option("--github_commit_sha", envvar="UNITY_CLOUD_BUILD_GITHUB_COMMIT_SHA", type=str)
-@click.option("--allow_new_build_targets", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_BUILD_TARGETS", type=str, default=True)
+@click.option("--allow_new_target", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_TARGET", type=str, default=True)
 def main(
     api_key: str,
     org_id: str,
@@ -510,7 +510,7 @@ def main(
     github_commit_sha: str,
     create_share: bool,
     existing_build_number: int,
-    allow_new_build_targets: bool
+    allow_new_target: bool
 ) -> None:
 
     # sanitise some inputs
@@ -567,7 +567,7 @@ def main(
             github_branch_ref,
             github_head_ref,
             github_commit_sha,
-            allow_new_build_targets
+            allow_new_target
             )
         build_number = build_meta["build_number"]
         build_target_id = build_meta["build_target_id"]
