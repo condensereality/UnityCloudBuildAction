@@ -64,16 +64,67 @@ platform_default_artifact_filenames = {
   'linux':'Linux.zip',	# gr: probably not correct, update after a successfull build
 }
 
-
-class UnityCloudBuilder:
-    """
-    Handles connectivity to Unity Cloud Build SaaS
-    """
-
+# client that just connects to unity cloud build
+class UnityCloudClient:
     def __init__(
         self,
         api_key: str,
         org_id: str,
+    ) -> None:
+    
+        logger.info("Setting up Unity Cloud Client...")
+        self.api_base_url = "https://build-api.cloud.unity3d.com/api/v1"
+        self.org_id = org_id.lower()
+        self.api_key = api_key
+        self.api_request_base_url = f"{self.api_base_url}/orgs/{self.org_id}"
+
+    def get_request_headers(self) -> Dict:
+        # get base headers for any REST requests
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Basic {self.api_key}",
+        }
+        
+    def send_request(self, api_url: str) -> Dict:
+        headers = self.get_request_headers()
+        url = f"{self.api_request_base_url}{api_url}"
+        response = requests.get( url, headers=headers, timeout=fetch_timeout_secs )
+        
+        if response.status_code != 200:
+            raise Exception(f"Request failed with status {response.status_code} content={response.text} with url={url}")
+        data = response.json()
+        return data
+
+    # List all the projects org. This is essentially to verify input settings
+    def list_projects(self) -> Dict:
+        logger.info(f"Fetching projects for {self.org_id}...")
+        meta = self.send_request(f"/projects")
+        projects = []
+        for project in meta:
+            projects.append( project["projectid"] )
+        
+        projects_string = ", ".join(projects)
+        logger.info(f"Found organisation projects; {projects_string}")
+        return projects
+        
+    # List all the build targets for this org/project. This is essentially to verify credentials/org/project settings
+    def list_build_targets(self, project_id:str) -> Dict:
+        logger.info(f"Fetching build targets for {self.org_id}/{project_id}...")
+        meta = self.send_request(f"/projects/{project_id}/buildtargets")
+        build_targets = []
+        for build_target in meta:
+            build_targets.append( build_target["buildtargetid"] )
+
+        build_targets_string = ", ".join(build_targets)
+        logger.info(f"Got project {project_id} build targets; {build_targets_string}")
+        return build_targets
+
+
+# Handles build target setup & build execution to a client
+class UnityCloudBuilder:
+    def __init__(
+        self,
+        client: UnityCloudClient,
         project_id: str,
         primary_build_target: str,
         target_platform: str,
@@ -116,55 +167,15 @@ class UnityCloudBuilder:
         self.allow_new_build_targets = allow_new_build_targets
 
         logger.info("Setting up Unity Cloud Client...")
-        self.api_base_url = "https://build-api.cloud.unity3d.com/api/v1"
-        self.org_id = org_id.lower()
         self.project_id = project_id.lower()
         self.target_platform = target_platform.lower()
-        self.api_key = api_key
         self.primary_build_target_id = primary_build_target.lower()
-
-    def prepare_headers(self) -> Dict:
-        """
-        prepares headers for the request - ensures we are authorized.
-        """
-        return {
-            "Content-Type": "application/json",
-            "Authorization": f"Basic {self.api_key}",
-        }
-
-
-    # List all the projects org. This is essentially to verify input settings
-    def list_projects(self) -> Dict:
-        logger.info(f"Fetching projects for {self.org_id}...")
-        resp = requests.get(
-            f"{self.api_base_url}/orgs/{self.org_id}/projects",
-            headers=self.prepare_headers(),
-            timeout=fetch_timeout_secs
-        )
-        if resp.status_code == 200:
-            Projects = ", ".join(x["projectid"] for x in resp.json())
-            logger.info(f"Got organisation projects; {Projects}")
-            return
-        raise Exception(f"Failed to lookup projects for {self.org_id} - received status={resp.status_code} content={resp.text}")
+        self.client = client
 
 
 
-    # List all the build targets for this org/project. This is essentially to verify credentials/org/project settings
-    def list_build_targets(self) -> Dict:
-        logger.info(f"Fetching build targets for {self.org_id}/{self.project_id}...")
-        resp = requests.get(
-            f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets",
-            headers=self.prepare_headers(),
-            timeout=fetch_timeout_secs
-        )
-        if resp.status_code == 200:
-            BuildTargets = ", ".join(x["buildtargetid"] for x in resp.json())
-            #logger.info(f"Got organisation projects; {Projects}")
-            # todo: extract/format build targets from json
-            logger.info(f"Got project build targets; {BuildTargets}")
-            return resp.json()
 
-        raise Exception(f"Failed to lookup build targets for {self.org_id}/{self.project_id} - received status={resp.status_code} content={resp.text}")
+
 
 
 
@@ -207,7 +218,7 @@ class UnityCloudBuilder:
         logger.info(f"Fetching build target meta for {build_target_id}...")
         resp = requests.get(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}",
-            headers=self.prepare_headers(),
+            headers=self.client.get_request_headers(),
             timeout=fetch_timeout_secs
         )
         if resp.status_code == 200:
@@ -232,7 +243,7 @@ class UnityCloudBuilder:
         logger.info(f"Setting env var: {key} on target: {build_target_id}...")
         resp = requests.put(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/envvars",
-            headers=self.prepare_headers(),
+            headers=self.client.get_request_headers(),
             json={key: value},
         )
         if resp.status_code == 200:
@@ -312,7 +323,7 @@ class UnityCloudBuilder:
             # make the new build target
             resp = requests.post(
                 f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets",
-                headers=self.prepare_headers(),
+                headers=self.client.get_request_headers(),
                 json=payload,
                 timeout=fetch_timeout_secs
             )
@@ -349,7 +360,7 @@ class UnityCloudBuilder:
         )
         resp = requests.post(
             f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/builds",
-            headers=self.prepare_headers(),
+            headers=self.client.get_request_headers(),
             json={"clean": False, "delay": 0},
         )
         if resp.status_code == 202:
@@ -379,27 +390,18 @@ class UnityCloudBuilder:
         logger.info(f"Checking status of build {build_number}...")
         failed_statuses = ["failure", "canceled", "cancelled", "unknown"]
         success_statuses = ["success"]
-        resp = requests.get(
-            f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}",
-            headers=self.prepare_headers(),
-            timeout=fetch_timeout_secs
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            status = data["buildStatus"]
+        data = self.client.send_request(f"/projects/{self.project_id}/buildtargets/{build_target_id}/builds/{build_number}")
+        status = data["buildStatus"]
 
-            if status in failed_statuses:
-                logger.critical(f"Build {build_number} on project {self.project_id} on target {build_target_id} failed with status: {status}")
-                # gr: throw here instead of exiting?
-                sys.exit(1)
+        if status in failed_statuses:
+            raise Exception(f"Build {build_number} on project {self.project_id} on target {build_target_id} failed with status: {status}")
 
-            if status in success_statuses:
-                logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} completed successfully!")
-                return data
+        if status in success_statuses:
+            logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} completed successfully!")
+            return data
                 
-            logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} is still running: {status}")
-            return
-        raise Exception(f"Could not check status of build - http status={resp.status_code} content={resp.text}")
+        logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} is still running: {status}")
+        return
 
     def get_share_url_from_share_id(self, share_id:str ) -> str:
         return f"https://developer.cloud.unity3d.com/share/share.html?shareId={share_id}"
@@ -488,8 +490,25 @@ def main(
     github_commit_sha: str,
     create_share: bool,
     existing_build_number: int,
-    allow_new_build_targets: bool,
+    allow_new_build_targets: bool
 ) -> None:
+
+    client: UnityCloudClient = UnityCloudClient(
+        api_key,
+        org_id
+    )
+
+    # to help users and for debug, just list all projects
+    projects = client.list_projects()
+    # if the user has provided a project, list it's build targets, otherwise, list em all!
+    if project_id:
+        client.list_build_targets( project_id )
+    else:
+        for project in projects:
+            client.list_build_targets( project )
+
+    return
+    
 
     # when we have an existing build number, we don't need a lot of the other meta
     # todo: if user supplied build number AND other meta, validate that meta and throw if there's a mismatch
@@ -519,15 +538,6 @@ def main(
     )
     client = builder
 
-    # to help users and for debug, just list all projects
-    try:
-        client.list_projects()
-        client.list_build_targets()
-    except BaseException as exception:
-        logger.critical(f"Failed to get organisation projects, or project build targets. Credentials are probably incorrect; {exception}")
-        sys.exit(1)
-        
-        
         
     # obtain the build target we need to run against
     try:
