@@ -42,6 +42,9 @@ on:
      SlackBotChannelId:
        required: false
        type: string
+     UnityCloudExistingBuildNumber:
+       required: false
+       type: number
    secrets:
      UnityCloudBuildApiKey:
        required: true
@@ -86,6 +89,7 @@ jobs:
        unity_cloud_build_github_branch_ref: ${{ github.ref }}
        unity_cloud_build_github_head_ref: ${{ github.head_ref }}
        unity_cloud_build_github_commit_sha: ${{ github.sha }}
+       unity_cloud_build_use_existing_build_number: ${{ inputs.UnityCloudExistingBuildNumber }}
     
     - name: Store binary as artifact
       if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToOculusReleaseChannel }}
