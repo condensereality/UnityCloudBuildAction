@@ -175,7 +175,7 @@ jobs:
         with:
           appId: ${{ secrets.OculusAppId }}
           appSecret: ${{ secrets.OculusAppSecret }}
-          apkPath: ${{ needs.UnzipApkFromZip.outputs.APK_FILENAME }}
+          apkPath: ${{ steps.UnzipApkFromZip.outputs.APK_FILENAME }}
           releaseChannel: ${{ inputs.OculusReleaseChannel }}
       
       
