@@ -157,14 +157,14 @@ jobs:
          echo APK_FILENAME="$(ls *.apk)" >> "$GITHUB_OUTPUT"
 
       - name: Install ovr-platform-util
-        uses: RageAgainstThePixel/setup-ovr-platform-util@v1
+        uses: condensereality/setup-ovr-platform-util@v1
 
       - name: Check ovr-platform-util
         run: |
          ovr-platform-util version
 
       - name: Upload APK to oculus release channel
-        uses: RageAgainstThePixel/upload-meta-quest-build@v1
+        uses: condensereality/upload-meta-quest-build@v1
         with:
           appId: ${{ secrets.OculusAppId }}
           appSecret: ${{ secrets.OculusAppSecret }}
