@@ -32,8 +32,9 @@ if not GITHUB_WORKSPACE:
 	raise Exception(f"GITHUB_WORKSPACE env variable is empty. Expecting this to be a directory")
 
 # write out meta back to workflow via github output vars
-github_output_filename = os.getenv('GITHUB_OUTPUT')
-github_env_filename = os.getenv('GITHUB_ENV')
+# if no env var, write to a local file for debugging
+github_output_filename = os.getenv('GITHUB_OUTPUT') or "GITHUB_OUTPUT.txt"
+github_env_filename = os.getenv('GITHUB_ENV') or "GITHUB_ENV.txt"
 
 def write_github_output_and_env(key: str,value: str) -> None:
     
@@ -205,37 +206,6 @@ class UnityCloudBuilder:
         self.target_platform = target_platform.lower()
         self.primary_build_target_id = primary_build_target.lower()
         self.client = client
-
-    def download_artifact(self, url: str) -> None:
-        logger.info(f"Downloading built binary to workspace... {url}")
-        
-        resp = requests.get(url, allow_redirects=True)
-        if resp.status_code == 200:
-            try:
-                # todo: dont rename files. eg. android output is .apk, use that
-                filename = platform_default_artifact_filenames[self.target_platform]
-                # files must be written inside the GITHUB_WORKSPACE
-                filepath = Path( GITHUB_WORKSPACE ) / "artifacts" / filename
-                
-                if not filepath.is_relative_to(GITHUB_WORKSPACE):
-                    logger.info(f"Warning: filepath({filepath.absolute()} is not relative to GITHUB_WORKSPACE({GITHUB_WORKSPACE})")
-
-                directory = filepath.parent
-                directory.mkdir(parents=True,exist_ok=True)
-                filepath.write_bytes(resp.content)
-            except IOError as exception:
-                logger.critical(f"Could not write built binary to disk: {exception}")
-                sys.exit(1)
-
-            # need to output a github_workspace relative path
-            workspacefilepath = str( filepath.relative_to(GITHUB_WORKSPACE) )
-            meta = { "filename":filename, "filepath":workspacefilepath}
-            logger.info(f"Download to {meta['filepath']} successful!")
-            return meta
-            
-        logger.critical(f"Build could not be downloaded - http status={resp.status_code} content={resp.text}")
-        # gr: throw instead of exiting here
-        sys.exit(1)
 
     
     def get_build_target(self, build_target_id: str) -> Dict:
@@ -442,7 +412,44 @@ class UnityCloudBuilder:
         
 
 
-# start a new build and return the build number for monitoring
+def download_file_to_workspace(url: str) -> Dict:
+	logger.info(f"Downloading file to workspace ({GITHUB_WORKSPACE})... {url}")
+	
+	response = requests.get(url, allow_redirects=True)
+	if response.status_code != 200:
+		raise Exception(f"Request failed with status {response.status_code} content={response.text} with url={url}")
+
+	#	find filename from response
+	filename = response.headers.get('content-disposition') or ""
+	if filename.startswith("attachment; filename="):
+		filename = filename.replace("attachment; filename=","")
+	else:
+		raise Exception("Dont know how to get filename from url/response (no content-disposition")
+
+	# files must be written inside the GITHUB_WORKSPACE
+	filepath = Path( GITHUB_WORKSPACE ) / "artifacts" / filename
+	filepath_absolute = filepath.absolute()
+	if not filepath.is_relative_to(GITHUB_WORKSPACE):
+		logger.warning(f"filepath({filepath_absolute} is not relative to GITHUB_WORKSPACE({GITHUB_WORKSPACE})")
+
+	directory = filepath.parent
+	directory.mkdir(parents=True,exist_ok=True)
+	try:
+		logger.info(f"Writing download to {filepath_absolute}...")
+		filepath.write_bytes(response.content)
+	except IOError as exception:
+		raise Exception(f"Could not file download to disk ({filepath_absolute}): {exception}")
+
+	# need to output a github_workspace relative path
+	workspacefilepath = str( filepath.relative_to(GITHUB_WORKSPACE) )
+	meta = { "filename":filename, "filepath":workspacefilepath}
+	logger.info(f"Download to {meta['filepath']} successful!")
+	return meta
+
+
+# start a new build and return dictionary with
+#	.build_number ; for monitoring
+#	.build_target_id ; build target id in case a new one was created
 def create_new_build(
     client: UnityCloudClient,
     project_id: str,
@@ -453,8 +460,7 @@ def create_new_build(
     github_head_ref: str,
     github_commit_sha: str,
     allow_new_target: bool,
-) -> int:
-
+) -> Dict:
 
     # gr: remove the need for target platform and get from target meta
     # validate incoming target platform
@@ -638,7 +644,7 @@ def main(
     
     # Build finished successfully
     if download_binary:
-        artifact_meta = client.download_artifact(build_meta["links"]["download_primary"]["href"])
+        artifact_meta = download_file_to_workspace(build_meta["links"]["download_primary"]["href"])
         write_github_output_and_env("ARTIFACT_FILENAME", artifact_meta["filename"])
         write_github_output_and_env("ARTIFACT_FILEPATH", artifact_meta["filepath"])
 
