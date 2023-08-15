@@ -65,7 +65,7 @@ platform_default_artifact_filenames = {
 }
 
 
-class UnityCloudBuildClient:
+class UnityCloudBuilder:
     """
     Handles connectivity to Unity Cloud Build SaaS
     """
@@ -169,8 +169,8 @@ class UnityCloudBuildClient:
 
 
     def download_artifact(self, url: str) -> None:
-        """ Downloads the final built binary to disk """
         logger.info(f"Downloading built binary to workspace... {url}")
+        
         resp = requests.get(url, allow_redirects=True)
         if resp.status_code == 200:
             try:
@@ -499,7 +499,7 @@ def main(
         sys.exit(1)
 
     # create unity cloud build client
-    client: UnityCloudBuildClient = UnityCloudBuildClient(
+    builder: UnityCloudBuilder = UnityCloudBuilder(
         api_key,
         org_id,
         project_id,
@@ -510,8 +510,9 @@ def main(
         github_commit_sha,
         allow_new_build_targets
     )
+    client = builder
 
-
+    # to help users and for debug, just list all projects
     try:
         client.list_projects()
         client.list_build_targets()
@@ -523,7 +524,7 @@ def main(
         
     # obtain the build target we need to run against
     try:
-        build_target_id: str = client.get_build_target_id()
+        build_target_id: str = builder.get_build_target_id()
         logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
     except BaseException as exception:
         logger.critical(f"Unable to obtain unity build target; {exception}")
@@ -532,7 +533,7 @@ def main(
     if build_target_id != primary_build_target:
         # set build platform env var for the PR build target
         try:
-            client.set_build_target_env_var(
+            builder.set_build_target_env_var(
                 build_target_id, "BUILD_PLATFORM", target_platform
             )
         except tenacity.RetryError:
@@ -548,7 +549,7 @@ def main(
     else:
         # create a new build for the specified build target
         try:
-            build_number = client.start_build(build_target_id)
+            build_number = builder.start_build(build_target_id)
             logger.info(f"Started build number {build_number}")
         except tenacity.RetryError:
             logger.critical(
