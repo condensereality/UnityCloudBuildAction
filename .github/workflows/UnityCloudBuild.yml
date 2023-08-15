@@ -201,6 +201,14 @@ jobs:
       run: |
        echo TESTFLIGHTRESULT_STRING="TestFlight $TFRESULT_STRING " >> "$GITHUB_ENV"
 
+    - name: Set OCULUSRELEASERESULT_STRING env
+      if: ${{ inputs.UploadToOculusReleaseChannel }}
+      env:
+       ORRESULT_STRING: ${{ needs.UploadToOculusReleaseChannel.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToOculusReleaseChannel.result }}
+      run: |
+       echo OCULUSRELEASERESULT_STRING="OculusRelease $ORRESULT_STRING " >> "$GITHUB_ENV"
+
+
     - name: Notify Slack
       continue-on-error: true
       uses: slackapi/slack-github-action@v1.23.0
@@ -213,4 +221,4 @@ jobs:
        
       with:
        channel-id: ${{ inputs.SlackBotChannelId }}
-       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} ${{ env.TESTFLIGHTRESULT_STRING }} \n:pencil2: ${{env.COMMIT_STRING}} ${{ env.BRANCH_STRING }} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
+       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} ${{ env.TESTFLIGHTRESULT_STRING }} ${{ env.OCULUSRELEASERESULT_STRING }} \n:pencil2: ${{env.COMMIT_STRING}} ${{ env.BRANCH_STRING }} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
