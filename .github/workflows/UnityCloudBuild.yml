@@ -78,7 +78,7 @@ jobs:
        unity_cloud_build_project_id: ${{ inputs.UnityCloudProject }}
        unity_cloud_build_polling_interval: 60
        unity_cloud_build_primary_target: ${{ inputs.UnityCloudBuildTarget }}
-       unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
+       unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToOculusReleaseChannel }}
        unity_cloud_build_create_share: ${{ inputs.ReportShareUrl }}
        # github.ref is the fully formed ref, eg refs/pull/6/merge or refs/tag/v0.1.2
        # github.head_ref is present in pull requests, and is the SOURCE branch (eg. YourFeatureBranch)
