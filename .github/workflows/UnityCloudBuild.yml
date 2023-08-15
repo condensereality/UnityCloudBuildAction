@@ -23,7 +23,7 @@ on:
      UnityCloudTargetPlatform:
        required: false
        type: string
-       deprecationMessage: "UnityCloudTargetPlatform is no longer needed and has no effect."
+       #deprecationMessage: "UnityCloudTargetPlatform is no longer needed and has no effect." # gr: cannot deprecate workflow inputs, just action inputs
      DownloadBinaryToArtifact:
        required: false
        type: boolean
