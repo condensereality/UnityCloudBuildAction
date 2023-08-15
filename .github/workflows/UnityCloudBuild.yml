@@ -20,6 +20,10 @@ on:
      UnityCloudBuildTarget:
        required: true
        type: string
+     UnityCloudTargetPlatform:
+       required: false
+       type: string
+       deprecationMessage: "UnityCloudTargetPlatform is no longer needed and has no effect."
      DownloadBinaryToArtifact:
        required: false
        type: boolean
