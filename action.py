@@ -186,7 +186,8 @@ class UnityCloudBuildClient:
                 directory.mkdir(parents=True,exist_ok=True)
                 filepath.write_bytes(resp.content)
             except IOError as exception:
-                raise Exception(f"Could not write built binary to disk: {exception}")
+                logger.critical(f"Could not write built binary to disk: {exception}")
+                sys.exit(1)
 
             # need to output a github_workspace relative path
             workspacefilepath = str( filepath.relative_to(GITHUB_WORKSPACE) )
@@ -194,7 +195,9 @@ class UnityCloudBuildClient:
             logger.info(f"Download to {meta['filepath']} successful!")
             return meta
             
-        raise Exception(f"Build could not be downloaded - http status={resp.status_code} content={resp.text}")
+        logger.critical(f"Build could not be downloaded - http status={resp.status_code} content={resp.text}")
+        # gr: throw instead of exiting here
+        sys.exit(1)
 
     
     def get_build_target(self, build_target_id: str) -> Dict:
@@ -386,7 +389,9 @@ class UnityCloudBuildClient:
             status = data["buildStatus"]
 
             if status in failed_statuses:
-                raise Exception(f"Build {build_number} on project {self.project_id} on target {build_target_id} failed with status: {status}")
+                logger.critical(f"Build {build_number} on project {self.project_id} on target {build_target_id} failed with status: {status}")
+                # gr: throw here instead of exiting?
+                sys.exit(1)
 
             if status in success_statuses:
                 logger.info(f"Build {build_number} on project {self.project_id} on target {build_target_id} completed successfully!")
@@ -490,7 +495,8 @@ def main(
     target_platform = target_platform.lower()
     if target_platform not in platform_default_artifact_filenames.keys():
         platform_list = ", ".join(x for x in platform_default_artifact_filenames.keys())
-        raise Exception(f"Target platform must be one of {platform_list}")
+        logger.critical(f"Target platform must be one of {platform_list}")
+        sys.exit(1)
 
     # create unity cloud build client
     client: UnityCloudBuildClient = UnityCloudBuildClient(
@@ -510,7 +516,8 @@ def main(
         client.list_projects()
         client.list_build_targets()
     except BaseException as exception:
-        raise Exception(f"Failed to get organisation projects, or project build targets. Credentials are probably incorrect; {exception}")
+        logger.critical(f"Failed to get organisation projects, or project build targets. Credentials are probably incorrect; {exception}")
+        sys.exit(1)
         
         
         
@@ -519,7 +526,8 @@ def main(
         build_target_id: str = client.get_build_target_id()
         logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
     except BaseException as exception:
-        raise Exception(f"Unable to obtain unity build target; {exception}")
+        logger.critical(f"Unable to obtain unity build target; {exception}")
+        sys.exit(1)
 
     if build_target_id != primary_build_target:
         # set build platform env var for the PR build target
@@ -528,7 +536,10 @@ def main(
                 build_target_id, "BUILD_PLATFORM", target_platform
             )
         except tenacity.RetryError:
-            raise Exception(f"Unable to set env var BUILD_PLATFORM={target_platform} on {build_target_id} after 10 attempts!")
+            logger.critical(
+                f"Unable to set env var BUILD_PLATFORM={target_platform} on {build_target_id} after 10 attempts!"
+            )
+            sys.exit(1)
             
     # for testing, use existing build number
     if existing_build_number >= 0:
@@ -540,7 +551,10 @@ def main(
             build_number = client.start_build(build_target_id)
             logger.info(f"Started build number {build_number}")
         except tenacity.RetryError:
-            raise Exception(f"Unable to start unity build {build_target_id} after 10 attempts!")
+            logger.critical(
+                f"Unable to start unity build {build_target_id} after 10 attempts!"
+            )
+            sys.exit(1)
 
     # poll the running build for updates waiting for an polling interval between each poll
     while True:
@@ -550,8 +564,8 @@ def main(
             if build_meta:
                 break
         except tenacity.RetryError as exception:
-            raise Exception(f"Unable to check status unity build {build_target_id} {build_number} after 10 attempts! {exception}")
-
+            logger.critical(f"Unable to check status unity build {build_target_id} {build_number} after 10 attempts! {exception}")
+            sys.exit(1)
         logger.info(f"Waiting {polling_interval} seconds...")
         time.sleep(polling_interval)
 
@@ -569,13 +583,7 @@ def main(
         logger.info(f"Got sharing url {share_url}")
         write_github_output_and_env("SHARE_URL", share_url)
             
-    # finished!
-
+    sys.exit(0)
 
 if __name__ == "__main__":
-    try:
-        main()
-        sys.exit(0)
-    except BaseException as exception:
-        logger.critical(f"{exception}")
-        sys.exit(1)
+    sys.exit(main())
