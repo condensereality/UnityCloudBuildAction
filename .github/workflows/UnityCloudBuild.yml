@@ -156,9 +156,12 @@ jobs:
       # unzip the artifact and find the apk inside, save that filename
       - name: Unzip APK from artifact
         id: UnzipApkFromZip
+        # the artifact is in fact an .apk in this case, doesn't need unzipping
+        #run: |
+        # unzip ${{ env.ARTIFACT_FILENAME }}
+        # echo APK_FILENAME="$(ls *.apk)" >> "$GITHUB_OUTPUT"
         run: |
-         unzip ${{ env.ARTIFACT_FILENAME }}
-         echo APK_FILENAME="$(ls *.apk)" >> "$GITHUB_OUTPUT"
+         echo APK_FILENAME="${{ env.ARTIFACT_FILENAME }}" >> "$GITHUB_OUTPUT"
 
       - name: Install ovr-platform-util
         uses: condensereality/setup-ovr-platform-util@main
