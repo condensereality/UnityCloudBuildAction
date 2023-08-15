@@ -44,7 +44,7 @@ on:
        type: string
      UnityCloudExistingBuildNumber:
        required: false
-       type: number
+       type: string # this should be a number, but to allow the input to be used from a workflow_dispatch input, numbers dont work
    secrets:
      UnityCloudBuildApiKey:
        required: true
