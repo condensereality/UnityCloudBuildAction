@@ -32,6 +32,11 @@ on:
      ReportShareUrl:
        required: false
        type: boolean
+     UploadToOculusReleaseChannel:
+       required: false
+       type: boolean
+     OculusReleaseChannel:
+       required: false
      SlackBotChannelId:
        required: false
        type: string
@@ -46,6 +51,11 @@ on:
        required: false
      AppStoreConnect_Auth_Issuer:
        required: false
+     OculusAppId:
+       required: false
+     OculusAppSecret:
+       required: false
+
 
 jobs:
   Build:
@@ -77,7 +87,7 @@ jobs:
        unity_cloud_build_github_commit_sha: ${{ github.sha }}
     
     - name: Store binary as artifact
-      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight }}
+      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToOculusReleaseChannel }}
       uses: actions/upload-artifact@v2
       with:
         name: ${{ steps.build.outputs.ARTIFACT_FILENAME }}
@@ -124,7 +134,39 @@ jobs:
         run: xcrun altool --upload-app --file ${{ env.ARTIFACT_FILENAME }} --type ios --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
          
       
+  UploadToOculusReleaseChannel:
+    if: ${{ inputs.UploadToOculusReleaseChannel }}
+    name: Upload to Oculus Release Channel
+    runs-on: macos-latest
+    needs: Build
+    env:
+      ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
       
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.ARTIFACT_FILENAME }}
+      
+      # unzip the artifact and find the apk inside, save that filename
+      - name: Unzip APK from artifact
+        id: UnzipApkFromZip
+        run: |
+         unzip ${{ env.ARTIFACT_FILENAME }}
+         echo APK_FILENAME="$(ls *.apk)" >> "$GITHUB_OUTPUT"
+
+      - name: Install ovr-platform-util
+        uses: RageAgainstThePixel/setup-ovr-platform-util@v1
+        run: |
+         ovr-platform-util version
+
+      - name: Upload APK to oculus release channel
+        uses: RageAgainstThePixel/upload-meta-quest-build@v1
+        with:
+          appId: ${{ secrets.OculusAppId }}
+          appSecret: ${{ secrets.OculusAppSecret }}
+          apkPath: ${{ needs.UnzipApkFromZip.outputs.APK_FILENAME }}
+          releaseChannel: ${{ inputs.OculusReleaseChannel }}
       
       
   ReportToSlack:
