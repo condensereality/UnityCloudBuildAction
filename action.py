@@ -469,7 +469,7 @@ class UnityCloudBuilder:
     "--existing_build_number",
     envvar="UNITY_CLOUD_BUILD_USE_EXISTING_BUILD_NUMBER",
     type=int,
-    default=-1,
+    default=None,
 )
 @click.option("--github_branch_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_BRANCH_REF", type=str)
 @click.option("--github_head_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_HEAD_REF", type=str)
@@ -491,12 +491,19 @@ def main(
     allow_new_build_targets: bool,
 ) -> None:
 
-    # validate incoming target platform
-    target_platform = target_platform.lower()
-    if target_platform not in platform_default_artifact_filenames.keys():
-        platform_list = ", ".join(x for x in platform_default_artifact_filenames.keys())
-        logger.critical(f"Target platform must be one of {platform_list}")
-        sys.exit(1)
+    # when we have an existing build number, we don't need a lot of the other meta
+    # todo: if user supplied build number AND other meta, validate that meta and throw if there's a mismatch
+    if existing_build_number != None:
+       logger.info(f"Checking build number {existing_build_number}")
+       
+    else:
+        # gr: remove the need for target platform and get from target meta
+        # validate incoming target platform
+        target_platform = (target_platform or "").lower()
+        if target_platform not in platform_default_artifact_filenames.keys():
+            platform_list = ", ".join(x for x in platform_default_artifact_filenames.keys())
+            logger.critical(f"Target platform must be one of {platform_list}")
+            sys.exit(1)
 
     # create unity cloud build client
     builder: UnityCloudBuilder = UnityCloudBuilder(
