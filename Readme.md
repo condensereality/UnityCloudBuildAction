@@ -48,10 +48,6 @@ action then picks up and utilises to make relevant calls to Unity Cloud Build.
 - `Required`  
 - The Unity Cloud Build primary build target - this is build target name. (Find this via urls, expected to be without spaces)
 
-### `unity_cloud_build_target_platform`
-- `Required`
-- The Unity Cloud Build target platform - this is target build platform - currently either ``ios``, ``android`` or ``webgl``.
-
 ### `unity_cloud_build_polling_interval`
 - `Optional
 - The frequency with which to query Unity Cloud Build jobs - the default is ``60`` seconds.
@@ -109,7 +105,6 @@ jobs:
           unity_cloud_build_project_id: yourgame
           unity_cloud_build_polling_interval: 60
           unity_cloud_build_primary_target: yourgame-ios-default
-          unity_cloud_build_target_platform: android
           unity_cloud_build_download_binary: false
           unity_cloud_build_create_share: true
           unity_cloud_build_github_head_ref: ${{ github.ref }}
@@ -131,8 +126,18 @@ On Macos;
 - `python3 pip install poetry`
 - `poetry install`
 - `export GITHUB_WORKSPACE=./Workspace`
-- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID --primary_build_target=BUILD_TARGET --target_platform=ios --github_branch_ref=refs/head/main`
-
+- Build main on Android target/configuration
+	- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID --primary_build_target=Android --github_branch_ref=refs/head/main`
+- List all projects & their build targets
+	- `poetry run python -m action --api_key=fffff --org_id=YOURORGID`
+- List build targets for a specific project
+	- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID`
+- Download the artifact from an existing build
+	- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID --build_target_id=Android --existing_build_number=123 --download_binary=true`
+- Get a share url from an existing build
+	- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID --build_target_id=Android --existing_build_number=123 --create_share_url=true`
+- Start a build on another branch; assuming the base target isn't configured to it already
+	- `poetry run python -m action --api_key=fffff --org_id=YOURORGID --project_id=PROJECT_ID --primary_build_target=Android --github_branch_ref=MyTestBranch`
 
 
 Uploading to AppStoreConnect TestFlight
