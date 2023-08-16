@@ -144,6 +144,9 @@ class UnityCloudClient:
         #	We class "success" as successful
         #	All other statuses, we return no info back (None)
         build_meta = self.get_build_meta( project_id, build_target_id, build_number )
+        # timed out
+        if !build_meta:
+            return None
         failed_statuses = ["failure", "canceled", "cancelled", "unknown"]
         success_statuses = ["success"]
         status = build_meta["buildStatus"]
@@ -326,7 +329,7 @@ class UnityCloudBuilder:
         if new_target_meta["post_request_response_status_code"] == 500:
             error = new_target_meta["error"]
             if error == "Build target name already in use for this project!":
-                logger.info(f"Build target for this PR already exists: {new_target_name}. Re-using...")
+                logger.info(f"Build target for this branch already exists: {new_target_name}. Re-using...")
                 return new_target_name
             raise Exception(f"New target had error: {error}")
         
