@@ -145,7 +145,7 @@ class UnityCloudClient:
         #	All other statuses, we return no info back (None)
         build_meta = self.get_build_meta( project_id, build_target_id, build_number )
         # timed out
-        if !build_meta:
+        if not build_meta:
             return None
         failed_statuses = ["failure", "canceled", "cancelled", "unknown"]
         success_statuses = ["success"]
@@ -550,7 +550,7 @@ def main(
         # build meta is returned once the build succeeds
         if build_meta:
             break
-        logger.info(f"Waiting {polling_interval} seconds...")
+        logger.info(f"Timeout/still running status; Waiting {polling_interval} seconds...")
         time.sleep(polling_interval)
 
     #logger.info(f"Build completed successfully; {build_meta}")
