@@ -171,6 +171,14 @@ Based on these docs
 
 You can download a mac exe for testing locally (To get CLI correct)
 
+A service account (and it's `keyid` and `secret`)is required, with the following roles (for that project)
+- Game Server Hosting Allocations Admin
+- Game Server Hosting API Editor
+- Game Server Hosting API Manager
+- Game Server Hosting API Viewer
+- Unity Environments Viewer
+	- `gr: this one is NOT LISTED IN UNITY DOCS` very important!
+
 
 Reusable Workflow
 ==================================
