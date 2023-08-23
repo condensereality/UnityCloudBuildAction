@@ -156,10 +156,26 @@ This can be implemented in a workflow with just a single step
 - Note; the `.p8` contents should be stored in `./private_keys/AuthKey_$APPSTORECONNECT_AUTH_KEY.p8` (same filename as downloaded in `keys` section of appstore connecct
 
 
+Uploading to Oculus Development Release Channels
+================================
+This works. 
+- `todo: document`
+
+
+Uploading to UnityGameHosting (Unity Game Services)
+=========================
+This uses a CLI tool from unity 
+- https://github.com/Unity-Technologies/unity-gaming-services-cli/releases/
+Based on these docs
+- https://services.docs.unity.com/guides/ugs-cli/latest/general/samples/ci-cd-pipeline-usage/github-actions/
+
+You can download a mac exe for testing locally (To get CLI correct)
+
+
 Reusable Workflow
 ==================================
 This repository contains a re-usable workflow; `./github/workflows/UnityCloudBuild.yml` which will
 - Trigger this action to do a Build
 - Share a Sharing Url to slack if slack channel & bot auth key are provided
 - Upload to testflight with appstoreconnect credentials
-
+- Upload to oculus dev release channels

@@ -45,6 +45,17 @@ on:
      UnityCloudExistingBuildNumber:
        required: false
        type: string # this should be a number, but to allow the input to be used from a workflow_dispatch input, numbers dont work
+     
+     UploadToUnityGameServerHosting:
+       required: false
+       type: boolean
+     UnityGameServerOsFamily:
+       required: false
+       type: choice
+       options:
+       - "LINUX"
+       - "WINDOWS"
+       
    secrets:
      UnityCloudBuildApiKey:
        required: true
@@ -177,6 +188,74 @@ jobs:
           appSecret: ${{ secrets.OculusAppSecret }}
           apkPath: ${{ steps.UnzipApkFromZip.outputs.APK_FILENAME }}
           releaseChannel: ${{ inputs.OculusReleaseChannel }}
+      
+  UploadToUnityGameServerHosting:
+    # https://services.docs.unity.com/guides/ugs-cli/latest/general/samples/ci-cd-pipeline-usage/github-actions/
+    if: ${{ inputs.UploadToUnityGameServerHosting }}
+    name: Upload to UnityGameServerHosting
+    runs-on: ubuntu-latest
+    needs: Build
+    env:
+      ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
+      
+    steps:
+    
+      - name: Download UnityGameServicesCli
+        id: UgsCli
+        run: |
+          curl -OL https://github.com/Unity-Technologies/unity-gaming-services-cli/releases/latest/download/ugs-linux-x64.zip
+          unzip ugs-linux-x64.zip -d "ugs-cli"
+          echo "Exe=ugs-cli/ugs-linux-x64" >> "$GITHUB_OUTPUT"
+    
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.ARTIFACT_FILENAME }}
+      
+      # we need all the files unzipped
+      - name: Unzip artifact
+        id: UnzipArtifact
+        run: |
+         unzip -d "Artifacts" ${{ env.ARTIFACT_FILENAME }}
+         echo ArtifactDir="Artifacts" >> "$GITHUB_OUTPUT"
+
+      # get compatible build name
+      - name: Calculate Build name
+        id: GetBuildName
+        env:
+         RawBuildName: ${{ github.ref }}	# refs/tag/v0.1.2 or refs/head/mybranch
+         # first sed removes refs/XXX/ and outputs tail
+         # second sed replaces disallowed chars with dashes
+        run: |
+         echo "BuildName=${{ env.RawBuildName }}" | sed -En 's/refs\/([a-z]+)\/(.*)$/\2/p' | sed -E 's/[^a-zA-Z0-9-]/-/g'  >> "$GITHUB_OUTPUT"
+
+      # any key to upload, needs these roles
+      #Game Server Hosting Allocations Admin
+      #Game Server Hosting API Editor
+      #Game Server Hosting API Manager
+      #Game Server Hosting API Viewer
+      #Unity Environments Viewer
+      - name: Upload build to UnityGameServices Build
+        env:
+         exe: ${{ steps.UgsCli.outputs.Exe }}
+         name: ${{ steps.GetBuildName.outputs.BuildName }}
+         artifactpath: ${{ steps.UnzipArtifact.outputs.ArtifactDir }}
+         osfamily: ${{ inputs.UnityGameServerOsFamily }}
+         type: "FILEUPLOAD" # CONTAINER|FILEUPLOAD|S3 (see ugs-macos-x64 gsh build create)
+         environment: ${{ inputs.UnityGameServerEnvironment }}
+         project: ${{ inputs.UnityGameServerEnvironment }}
+
+        run: |
+         echo "Version..."
+         ${{ env.exe }} --version
+         echo "Login..."
+         "${{ secrets.UnityGameServerSecret }}" | ${{ env.exe }} login --service-key-id ${{ secrets.UnityGameServerKeyId }} --secret-key-stdin
+         echo "Listing Existing builds..."
+         ${{ env.exe }} gsh build list --json
+         echo "Creating build if not existing..."
+         ${{ env.exe }} gsh build create --name ${{ env.name }} --os-family ${{ env.osfamily }} --type ${{ env.type }} --environment-name ${{ env.environment }} --project-id ${{ env.project }}
+         BUILD ID
+         ${{ env.exe }} gsh build create-version BUILD ID --directory ${{ env.artifactpath }} --environment-name ${{ env.environment }} --project-id ${{ env.project }}
       
       
   ReportToSlack:
