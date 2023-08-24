@@ -212,6 +212,8 @@ jobs:
       - name: Unzip Artifact
         id: UnzipArtifacts
         run: |
+         echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
+         ls -l ./
          unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles"
          echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
 
