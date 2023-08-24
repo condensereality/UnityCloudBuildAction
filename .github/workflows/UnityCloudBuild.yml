@@ -109,7 +109,7 @@ jobs:
        unity_cloud_build_use_existing_build_number: ${{ inputs.UnityCloudExistingBuildNumber }}
     
     - name: Store binary as artifact
-      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToOculusReleaseChannel }}
+      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting }}
       uses: actions/upload-artifact@v2
       with:
         name: ${{ steps.build.outputs.ARTIFACT_FILENAME }}
