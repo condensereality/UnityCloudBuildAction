@@ -57,10 +57,7 @@ on:
        type: string
      UnityGameServerHosting_BuildOsFamily:
        required: false
-       type: choice
-       options:
-       - "LINUX"
-       - "WINDOWS"
+       type: string # LINUX or WINDOWS
        
    secrets:
      UnityCloudBuildApiKey:
