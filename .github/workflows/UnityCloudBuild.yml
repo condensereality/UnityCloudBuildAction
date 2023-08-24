@@ -49,7 +49,13 @@ on:
      UploadToUnityGameServerHosting:
        required: false
        type: boolean
-     UnityGameServerOsFamily:
+     UnityGameServerHosting_ProjectId:
+       required: false
+       type: string
+     UnityGameServerHosting_Enviroment:
+       required: false
+       type: string
+     UnityGameServerHosting_BuildOsFamily:
        required: false
        type: choice
        options:
@@ -71,7 +77,10 @@ on:
        required: false
      OculusAppSecret:
        required: false
-
+     UnityGameServerHosting_Key:
+       required: false
+     UnityGameServerHosting_Secret:
+       required: false
 
 jobs:
   Build:
@@ -190,80 +199,49 @@ jobs:
           releaseChannel: ${{ inputs.OculusReleaseChannel }}
       
   UploadToUnityGameServerHosting:
-    # https://services.docs.unity.com/guides/ugs-cli/latest/general/samples/ci-cd-pipeline-usage/github-actions/
     if: ${{ inputs.UploadToUnityGameServerHosting }}
     name: Upload to UnityGameServerHosting
     runs-on: ubuntu-latest
     needs: Build
     env:
       ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
-      
+
     steps:
-    
-      - name: Download UnityGameServicesCli
-        id: UgsCli
-        run: |
-          curl -OL https://github.com/Unity-Technologies/unity-gaming-services-cli/releases/latest/download/ugs-linux-x64.zip
-          unzip ugs-linux-x64.zip -d "ugs-cli"
-          echo "Exe=ugs-cli/ugs-linux-x64" >> "$GITHUB_OUTPUT"
-    
       - name: Download Build Artifact
         uses: actions/download-artifact@v2
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
-      
-      # we need all the files unzipped
-      - name: Unzip artifact
-        id: UnzipArtifact
+          
+      - name: Unzip Artifact
+        id: UnzipArtifacts
         run: |
-         unzip -d "Artifacts" ${{ env.ARTIFACT_FILENAME }}
-         echo ArtifactDir="Artifacts" >> "$GITHUB_OUTPUT"
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles"
+         echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
 
-      # get compatible build name
-      - name: Calculate Build name
-        id: GetBuildName
-        env:
-         RawBuildName: ${{ github.ref }}	# refs/tag/v0.1.2 or refs/head/mybranch
-         # first sed removes refs/XXX/ and outputs tail
-         # second sed replaces disallowed chars with dashes
-        run: |
-         echo "BuildName=${{ env.RawBuildName }}" | sed -En 's/refs\/([a-z]+)\/(.*)$/\2/p' | sed -E 's/[^a-zA-Z0-9-]/-/g'  >> "$GITHUB_OUTPUT"
 
-      # any key to upload, needs these roles
+      # any service acount key to upload needs these roles
       #Game Server Hosting Allocations Admin
       #Game Server Hosting API Editor
       #Game Server Hosting API Manager
       #Game Server Hosting API Viewer
       #Unity Environments Viewer
-      - name: Upload build to UnityGameServices Build
-        env:
-         exe: ${{ steps.UgsCli.outputs.Exe }}
-         name: ${{ steps.GetBuildName.outputs.BuildName }}
-         artifactpath: ${{ steps.UnzipArtifact.outputs.ArtifactDir }}
-         osfamily: ${{ inputs.UnityGameServerOsFamily }}
-         type: "FILEUPLOAD" # CONTAINER|FILEUPLOAD|S3 (see ugs-macos-x64 gsh build create)
-         environment: ${{ inputs.UnityGameServerEnvironment }}
-         project: ${{ inputs.UnityGameServerEnvironment }}
-
-        run: |
-         echo "Version..."
-         ${{ env.exe }} --version
-         echo "Login..."
-         "${{ secrets.UnityGameServerSecret }}" | ${{ env.exe }} login --service-key-id ${{ secrets.UnityGameServerKeyId }} --secret-key-stdin
-         echo "Listing Existing builds..."
-         ${{ env.exe }} gsh build list --json
-         echo "Creating build if not existing..."
-         ${{ env.exe }} gsh build create --name ${{ env.name }} --os-family ${{ env.osfamily }} --type ${{ env.type }} --environment-name ${{ env.environment }} --project-id ${{ env.project }}
-         BUILD ID
-         ${{ env.exe }} gsh build create-version BUILD ID --directory ${{ env.artifactpath }} --environment-name ${{ env.environment }} --project-id ${{ env.project }}
-      
+      - name: Upload To new Unity Game Hosting build
+        uses: condensereality/UnityGameHostingAction@main
+        with:
+         BuildName: ${{ github.ref }}
+         BuildFilesDirectory: ${{ steps.UnzipArtifacts.output.ArtifactPath }}
+         BuildOsFamily: ${{ inputs.UnityGameServerHosting_BuildOsFamily }}
+         Project: ${{ inputs.UnityGameServerHosting_ProjectId }}
+         Environment: ${{ inputs.UnityGameServerHosting_Enviroment }}
+         Key: ${{ secrets.UnityGameServerHosting_Key }}
+         Secret: ${{ secrets.UnityGameServerHosting_Secret }}
       
   ReportToSlack:
    runs-on: ubuntu-22.04
    # can we force this to run (always()) AND only if channel is present?
    #if: ${{ inputs.SlackBotChannelId != '' }}
    if: always()
-   needs: [Build,UploadToTestFlight,UploadToOculusReleaseChannel]
+   needs: [Build,UploadToTestFlight,UploadToOculusReleaseChannel,UploadToUnityGameServerHosting]
    steps:
     - name: Set SHARE_STRING env
       if: needs.Build.outputs.share_url != ''
@@ -276,17 +254,24 @@ jobs:
     - name: Set TESTFLIGHTRESULT_STRING env
       if: ${{ inputs.UploadToTestFlight }}
       env:
-       TFRESULT_STRING: ${{ needs.UploadToTestFlight.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToTestFlight.result }}
+       TF_RESULT_STRING: ${{ needs.UploadToTestFlight.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToTestFlight.result }}
       run: |
-       echo TESTFLIGHTRESULT_STRING="TestFlight $TFRESULT_STRING " >> "$GITHUB_ENV"
+       echo TESTFLIGHTRESULT_STRING="TestFlight $TF_RESULT_STRING " >> "$GITHUB_ENV"
 
     - name: Set OCULUSRELEASERESULT_STRING env
       if: ${{ inputs.UploadToOculusReleaseChannel }}
       env:
-       ORRESULT_STRING: ${{ needs.UploadToOculusReleaseChannel.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToOculusReleaseChannel.result }}
+       OR_RESULT_STRING: ${{ needs.UploadToOculusReleaseChannel.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToOculusReleaseChannel.result }}
       run: |
-       echo OCULUSRELEASERESULT_STRING="OculusRelease $ORRESULT_STRING " >> "$GITHUB_ENV"
+       echo OCULUSRELEASERESULT_STRING="OculusRelease $OR_RESULT_STRING " >> "$GITHUB_ENV"
 
+    - name: Set UNITYGAMEHOSTINGUPLOADRESULT_STRING env
+      if: ${{ inputs.UploadToUnityGameServerHosting }}
+      env:
+       UGS_RESULT_STRING: ${{ needs.UploadToUnityGameServerHosting.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToUnityGameServerHosting.result }}
+      run: |
+       echo UNITYGAMEHOSTINGUPLOADRESULT_STRING="UnityGameHosting $UGS_RESULT_STRING " >> "$GITHUB_ENV"
+  
 
     - name: Notify Slack
       continue-on-error: true
@@ -300,4 +285,4 @@ jobs:
        
       with:
        channel-id: ${{ inputs.SlackBotChannelId }}
-       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} ${{ env.TESTFLIGHTRESULT_STRING }} ${{ env.OCULUSRELEASERESULT_STRING }} \n:pencil2: ${{env.COMMIT_STRING}} ${{ env.BRANCH_STRING }} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
+       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} ${{ env.TESTFLIGHTRESULT_STRING }} ${{ env.OCULUSRELEASERESULT_STRING }} ${{ env.UNITYGAMEHOSTINGUPLOADRESULT_STRING }}\n:pencil2: ${{env.COMMIT_STRING}} ${{ env.BRANCH_STRING }} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
