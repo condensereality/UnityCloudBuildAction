@@ -165,6 +165,11 @@ jobs:
       ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
       
     steps:
+      # error if artifact doesn't exist
+      - name: Check Artifact exists
+        uses: xSAVIKx/artifact-exists-action@v0 
+        with:
+          name: ${{ env.ARTIFACT_FILENAME }}
       - name: Download Build Artifact
         uses: actions/download-artifact@v2
         with:
