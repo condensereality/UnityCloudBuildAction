@@ -214,12 +214,13 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
           
+      # -x excludes patterns when unzipping
       - name: Unzip Artifact
         id: UnzipArtifacts
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
          ls -l ./
-         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles"
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" -x "*DontShip*"
          echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
 
 
