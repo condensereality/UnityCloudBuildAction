@@ -203,7 +203,7 @@ jobs:
   UploadToUnityGameServerHosting:
     if: ${{ inputs.UploadToUnityGameServerHosting }}
     name: Upload to UnityGameServerHosting
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     needs: Build
     env:
       ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
