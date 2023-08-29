@@ -233,7 +233,7 @@ jobs:
         uses: condensereality/UnityGameHostingAction@main
         with:
          BuildName: ${{ github.ref }}
-         BuildFilesDirectory: ${{ steps.UnzipArtifacts.output.ArtifactPath }}
+         BuildFilesDirectory: ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}
          BuildOsFamily: ${{ inputs.UnityGameServerHosting_BuildOsFamily }}
          Project: ${{ inputs.UnityGameServerHosting_ProjectId }}
          Environment: ${{ inputs.UnityGameServerHosting_Enviroment }}
