@@ -259,8 +259,8 @@ jobs:
           configVdf: ${{ secrets.SteamConfigVdfBase64 }}
           appId: ${{ inputs.SteamAppId }}
           buildDescription: ${{ steps.SteamBuildDescription.outputs.BuildDescription }}
-          rootPath: ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}
-          #depot1Path: Studio 5 Windows
+          rootPath: "."
+          depot1Path: ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}
           releaseBranch: ${{ inputs.SteamBranch }}
 
   UploadToUnityGameServerHosting:
