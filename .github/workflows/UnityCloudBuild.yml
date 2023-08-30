@@ -241,7 +241,7 @@ jobs:
       - name: Unzip Artifact
         id: UnzipArtifacts
         run: |
-         if [ -z "$ARTIFACT_FILENAME" ];then; echo "ARTIFACT_FILENAME env var is empty"; return 1; fi
+         [ -z "$ARTIFACT_FILENAME" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
          ls -l ./
          unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" -x "*DontShip*"
