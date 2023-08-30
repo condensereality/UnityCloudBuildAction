@@ -63,16 +63,16 @@ on:
        type: string # LINUX or WINDOWS
        
      UploadToSteam:
-       require: false
+       required: false
        type: boolean
      SteamUsername:
-       require: false
+       required: false
        type: string
      SteamAppId:
-       require: false
-       type: number
+       required: false
+       type: string # this should be a number, but github shared workflows cannot convert number to number (tries to interpret as integer)
      SteamBranch:
-       require: false
+       required: false
        type: string
 
    secrets:
