@@ -179,6 +179,14 @@ A service account (and it's `keyid` and `secret`)is required, with the following
 - Unity Environments Viewer
 	- `gr: this one is NOT LISTED IN UNITY DOCS` very important!
 
+Uploading to Steam
+============================
+- Generate `config.vdf` file with `steamcmd` https://developer.valvesoftware.com/wiki/SteamCMD
+	- https://github.com/game-ci/steam-deploy#configuration
+- Encode to base64 and put in a secret
+	- `cat config/config.vdf | base64 > config.vdf.base64.txt`
+
+
 
 Reusable Workflow
 ==================================

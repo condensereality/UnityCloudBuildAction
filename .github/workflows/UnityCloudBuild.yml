@@ -24,27 +24,30 @@ on:
        required: false
        type: string
        #deprecationMessage: "UnityCloudTargetPlatform is no longer needed and has no effect." # gr: cannot deprecate workflow inputs, just action inputs
-     DownloadBinaryToArtifact:
+     UnityCloudExistingBuildNumber:
        required: false
-       type: boolean
-     UploadToTestFlight:
+       type: string # this should be a number, but to allow the input to be used from a workflow_dispatch input, numbers dont work
+
+     DownloadBinaryToArtifact:
        required: false
        type: boolean
      ReportShareUrl:
        required: false
        type: boolean
+     SlackBotChannelId:
+       required: false
+       type: string
+
+     UploadToTestFlight:
+       required: false
+       type: boolean
+
      UploadToOculusReleaseChannel:
        required: false
        type: boolean
      OculusReleaseChannel:
        required: false
        type: string
-     SlackBotChannelId:
-       required: false
-       type: string
-     UnityCloudExistingBuildNumber:
-       required: false
-       type: string # this should be a number, but to allow the input to be used from a workflow_dispatch input, numbers dont work
      
      UploadToUnityGameServerHosting:
        required: false
@@ -59,24 +62,44 @@ on:
        required: false
        type: string # LINUX or WINDOWS
        
+     UploadToSteam:
+       require: false
+       type: boolean
+     SteamUsername:
+       require: false
+       type: string
+     SteamAppId:
+       require: false
+       type: number
+     SteamBranch:
+       require: false
+       type: string
+
    secrets:
      UnityCloudBuildApiKey:
        required: true
+       
      SlackBotAuthToken: # passing this enables slack reporting
        required: false
+       
      AppStoreConnect_Auth_Key:
        required: false
      AppStoreConnect_Auth_P8_Base64:
        required: false
      AppStoreConnect_Auth_Issuer:
        required: false
+       
      OculusAppId:
        required: false
      OculusAppSecret:
        required: false
+       
      UnityGameServerHosting_Key:
        required: false
      UnityGameServerHosting_Secret:
+       required: false
+       
+     SteamConfigVdfBase64: # base64 encoded config.vdf from steamcmd https://github.com/game-ci/steam-deploy (see readme)
        required: false
 
 jobs:
@@ -200,6 +223,45 @@ jobs:
           apkPath: ${{ steps.UnzipApkFromZip.outputs.APK_FILENAME }}
           releaseChannel: ${{ inputs.OculusReleaseChannel }}
       
+  UploadToSteam:
+    if: ${{ inputs.UploadToSteam }}
+    name: Upload to Steam
+    runs-on: ubuntu-latest # will also run on macos-latest
+    needs: Build
+    env:
+      ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
+
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.ARTIFACT_FILENAME }}
+          
+      # -x excludes patterns when unzipping
+      - name: Unzip Artifact
+        id: UnzipArtifacts
+        run: |
+         echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
+         ls -l ./
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" -x "*DontShip*"
+         echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
+
+      - name: Format Steam Build Description
+        id: SteamBuildDescription
+        run: |
+          echo BuildDescription="${{ github.ref }} ${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Steam
+        uses: game-ci/steam-deploy@v3 # v3 doesn't need ssfn
+        with:
+          username: ${{ inputs.SteamUsername }}
+          configVdf: ${{ secrets.SteamConfigVdfBase64 }}
+          appId: ${{ inputs.SteamAppId }}
+          buildDescription: ${{ steps.SteamBuildDescription.outputs.BuildDescription }}
+          rootPath: ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}
+          #depot1Path: Studio 5 Windows
+          releaseBranch: ${{ inputs.SteamBranch }}
+
   UploadToUnityGameServerHosting:
     if: ${{ inputs.UploadToUnityGameServerHosting }}
     name: Upload to UnityGameServerHosting
@@ -277,6 +339,13 @@ jobs:
       run: |
        echo UNITYGAMEHOSTINGUPLOADRESULT_STRING="UnityGameHosting $UGS_RESULT_STRING " >> "$GITHUB_ENV"
   
+    - name: Set UPLOADTOSTEAM_RESULT_STRING env
+      if: ${{ inputs.UploadToSteam }}
+      env:
+       UTS_RESULT_STRING: ${{ needs.UploadToSteam.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToSteam.result }}
+      run: |
+       echo UPLOADTOSTEAM_RESULT_STRING="UploadToSteam $UTS_RESULT_STRING " >> "$GITHUB_ENV"
+  
 
     - name: Notify Slack
       continue-on-error: true
@@ -290,4 +359,4 @@ jobs:
        
       with:
        channel-id: ${{ inputs.SlackBotChannelId }}
-       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} ${{ env.TESTFLIGHTRESULT_STRING }} ${{ env.OCULUSRELEASERESULT_STRING }} ${{ env.UNITYGAMEHOSTINGUPLOADRESULT_STRING }}\n:pencil2: ${{env.COMMIT_STRING}} ${{ env.BRANCH_STRING }} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
+       slack-message: "`${{github.repository}}/${{github.github.ref_name}}${{github.workflow}}` Build Result: ${{env.RESULT_STRING}} ${{ env.TESTFLIGHTRESULT_STRING }} ${{ env.OCULUSRELEASERESULT_STRING }} ${{ env.UNITYGAMEHOSTINGUPLOADRESULT_STRING }} ${{ env.UPLOADTOSTEAM_RESULT_STRING }}\n:pencil2: ${{env.COMMIT_STRING}} ${{ env.BRANCH_STRING }} \n:runner: ${{env.RUN_URL}} \n${{ env.SHARE_STRING }}"
