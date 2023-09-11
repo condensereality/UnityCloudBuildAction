@@ -169,7 +169,8 @@ jobs:
       # -x excludes patterns when unzipping
       - name: Unzip Artifact
         id: UnzipArtifacts
-        if: endsWith( env.ARTIFACT_FILENAME, '.zip.zip' )
+        #if: endsWith( env.ARTIFACT_FILENAME, '.zip.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
+        if: endsWith( env.ARTIFACT_FILENAME, '.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }} into UnzippedArtifact/..."
          ls -l ./
