@@ -41,6 +41,9 @@ on:
      UploadToTestFlight:
        required: false
        type: boolean
+     TestFlightAppPlatform:
+       required: false
+       type: string # macos, ios, appletvos
 
      UploadToOculusReleaseChannel:
        required: false
@@ -158,6 +161,11 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
           
+      - name: Check inputs
+        run: |
+          [ -z "$ARTIFACT_FILENAME" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
+          [ -z "${{ inputs.TestFlightAppPlatform }}" ] && echo "TestFlightAppPlatform is empty; needs to be ios|macos|appletvos " && exit 1
+
       # put the authkey p8 in private_keys/ in the filename altool expects
       - name: Get Auth Key.P8
         # xxx.p8 no such file or directory, means you cannot pipe to a file in a directory that doesnt exist
@@ -176,7 +184,7 @@ jobs:
          defaults read "$(find $UNZIPPED_PATH -name '*.app')/Info.plist" CFBundleShortVersionString
       
       - name: Upload .ipa to TestFlight
-        run: xcrun altool --upload-app --file ${{ env.ARTIFACT_FILENAME }} --type ios --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
+        run: xcrun altool --upload-app --file ${{ env.ARTIFACT_FILENAME }} --type ${{ inputs.TestFlightAppPlatform }} --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
          
       
   UploadToOculusReleaseChannel:
