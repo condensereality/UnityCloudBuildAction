@@ -160,14 +160,17 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
-          
+
+      # [ -z "${ARTIFACT_FILENAME}" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
+
       - name: Check inputs
         run: |
           echo "ARTIFACT_FILENAME = $ARTIFACT_FILENAME"
           echo "env.ARTIFACT_FILENAME = ${{ env.ARTIFACT_FILENAME }}"
           echo "TestFlightAppPlatform = ${{ inputs.TestFlightAppPlatform }}"
-          [ -z "${ARTIFACT_FILENAME}" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
+          [ -z "${{ env.ARTIFACT_FILENAME }}" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
           [ -z "${{ inputs.TestFlightAppPlatform }}" ] && echo "TestFlightAppPlatform is empty; needs to be ios|macos|appletvos " && exit 1
+          echo "Input variables are ok"
 
       # put the authkey p8 in private_keys/ in the filename altool expects
       - name: Get Auth Key.P8
