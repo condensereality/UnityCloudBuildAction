@@ -161,8 +161,24 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
 
-      # [ -z "${ARTIFACT_FILENAME}" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
 
+      # mac builds end up as .zip.zip as a .zip is uploaded and download-artifact downloads anything... wrapped into a zip
+      # so we need to unpack it.
+      # Check what IOS does... that may be a .ipa inside a zip... but altool just finds ipa? automatically?
+      # gr: we also want to exclude the do-not-ship unity meta files
+      # -x excludes patterns when unzipping
+      - name: Unzip Artifact
+        id: UnzipArtifacts
+        if: endsWith( env.ARTIFACT_FILENAME, '.zip.zip' )
+        run: |
+         echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }} into UnzippedArtifact/..."
+         ls -l ./
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "UnzippedArtifact" -x "*DoNotShip*" -x "*DontShip*"
+         echo ArtifactPath="UnzippedArtifact" >> "$GITHUB_OUTPUT"
+         ls -l ./UnzippedArtifact
+
+
+      # [ -z "${ARTIFACT_FILENAME}" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
       - name: Check inputs
         run: |
           echo "ARTIFACT_FILENAME = $ARTIFACT_FILENAME"
@@ -190,7 +206,11 @@ jobs:
          defaults read "$(find $UNZIPPED_PATH -name '*.app')/Info.plist" CFBundleShortVersionString
       
       - name: Upload .ipa to TestFlight
-        run: xcrun altool --upload-app --file ${{ env.ARTIFACT_FILENAME }} --type ${{ inputs.TestFlightAppPlatform }} --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
+        env:
+          UploadFilename: ${{ steps.UnzipArtifacts.outputs.ArtifactPath || env.ARTIFACT_FILENAME }}
+        run: |
+          echo "Running altool with --file ${{ env.UploadFilename }}..."
+          xcrun altool --upload-app --file ${{ env.UploadFilename }} --type ${{ inputs.TestFlightAppPlatform }} --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
          
       
   UploadToOculusReleaseChannel:
