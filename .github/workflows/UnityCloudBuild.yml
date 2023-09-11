@@ -166,7 +166,7 @@ jobs:
           echo "ARTIFACT_FILENAME = $ARTIFACT_FILENAME"
           echo "env.ARTIFACT_FILENAME = ${{ env.ARTIFACT_FILENAME }}"
           echo "TestFlightAppPlatform = ${{ inputs.TestFlightAppPlatform }}"
-          [ -z "$ARTIFACT_FILENAME" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
+          [ -z "${ARTIFACT_FILENAME}" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
           [ -z "${{ inputs.TestFlightAppPlatform }}" ] && echo "TestFlightAppPlatform is empty; needs to be ios|macos|appletvos " && exit 1
 
       # put the authkey p8 in private_keys/ in the filename altool expects
