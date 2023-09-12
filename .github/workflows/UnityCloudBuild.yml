@@ -162,21 +162,23 @@ jobs:
           name: ${{ env.ARTIFACT_FILENAME }}
 
 
-      # mac builds end up as .zip.zip as a .zip is uploaded and download-artifact downloads anything... wrapped into a zip
-      # so we need to unpack it.
-      # Check what IOS does... that may be a .ipa inside a zip... but altool just finds ipa? automatically?
-      # gr: we also want to exclude the do-not-ship unity meta files
+      # mac builds are contained in .zip. This is okay, but includes the giant DoNotShip folders, so strip them out
+      # altool doesn't accept .app folder, so mac apps need to be in .zip
+      # Check what IOS does... that may be a .ipa inside a zip... but altool just finds ipa the ipa (or the artifact may be .ipa)
       # -x excludes patterns when unzipping
       - name: Unzip Artifact
         id: UnzipArtifacts
-        #if: endsWith( env.ARTIFACT_FILENAME, '.zip.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
         if: endsWith( env.ARTIFACT_FILENAME, '.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }} into UnzippedArtifact/..."
          ls -l ./
          unzip ${{ env.ARTIFACT_FILENAME }} -d "UnzippedArtifact" -x "*DoNotShip*" -x "*DontShip*"
-         echo ArtifactPath="UnzippedArtifact" >> "$GITHUB_OUTPUT"
+         echo "Listing ./UnzippedArtifact..."
          ls -l ./UnzippedArtifact
+         echo "Zipping artifact back into Build.zip... (without DoNotShip files)"
+         zip -r Build.zip ./UnzippedArtifact
+         echo "ArtifactPath=Build.zip" >> "$GITHUB_OUTPUT"
+         ls -l ./Build.zip
 
 
       # [ -z "${ARTIFACT_FILENAME}" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
