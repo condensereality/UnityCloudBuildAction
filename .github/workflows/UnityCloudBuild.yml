@@ -165,20 +165,25 @@ jobs:
       # mac builds are contained in .zip. This is okay, but includes the giant DoNotShip folders, so strip them out
       # altool doesn't accept .app folder, so mac apps need to be in .zip
       # Check what IOS does... that may be a .ipa inside a zip... but altool just finds ipa the ipa (or the artifact may be .ipa)
+      # gr: actually, Transporter, altool etc, all require apps to be in a .pkg
+      #		they will output inaccurate info.plist errors or errors about the toolchain
+      #		https://stackoverflow.com/questions/60085388/expected-file-format-for-altool-upload-app-for-mac-os-app-store-app
       # -x excludes patterns when unzipping
-      - name: Unzip Artifact
-        id: UnzipArtifacts
+      - name: Package mac .app
+        id: PackageApp
         if: endsWith( env.ARTIFACT_FILENAME, '.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
         run: |
-         echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }} into UnzippedArtifact/..."
+         echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}, without do-not-ship files, into UnzippedArtifact/..."
          ls -l ./
          unzip ${{ env.ARTIFACT_FILENAME }} -d "UnzippedArtifact" -x "*DoNotShip*" -x "*DontShip*"
          echo "Listing ./UnzippedArtifact..."
          ls -l ./UnzippedArtifact
-         echo "Zipping artifact back into Build.zip... (without DoNotShip files)"
-         zip -r Build.zip ./UnzippedArtifact
-         echo "ArtifactPath=Build.zip" >> "$GITHUB_OUTPUT"
-         ls -l ./Build.zip
+         export AppFilename=$(find . -name *.app)
+         [ -z "$AppFilename" ] && echo "Didn't find a .app file; $Filename" && exit 1
+         echo "Packaging $AppFilename into .pkg"
+         xcrun productbuild --component $AppFilename /Applications $AppFilename.pkg
+         echo "ArtifactFilename=$AppFilename.pkg" >> "$GITHUB_OUTPUT"
+         ls -l ./
 
 
       # [ -z "${ARTIFACT_FILENAME}" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
@@ -210,7 +215,7 @@ jobs:
       
       - name: Upload .ipa to TestFlight
         env:
-          UploadFilename: ${{ steps.UnzipArtifacts.outputs.ArtifactPath || env.ARTIFACT_FILENAME }}
+          UploadFilename: ${{ steps.PackageApp.outputs.ArtifactFilename || env.ARTIFACT_FILENAME }}
         run: |
           echo "Running altool with --file ${{ env.UploadFilename }}..."
           xcrun altool --upload-app --file ${{ env.UploadFilename }} --type ${{ inputs.TestFlightAppPlatform }} --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
