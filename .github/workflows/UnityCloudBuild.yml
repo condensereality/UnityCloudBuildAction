@@ -172,6 +172,8 @@ jobs:
       - name: Package mac .app
         id: PackageApp
         if: endsWith( env.ARTIFACT_FILENAME, '.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
+        env:
+          SigningIdentifier: "Apple Distribution"
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}, without do-not-ship files, into UnzippedArtifact/..."
          ls -l ./
@@ -180,6 +182,13 @@ jobs:
          ls -l ./UnzippedArtifact
          export AppFilename=$(find . -name *.app)
          [ -z "$AppFilename" ] && echo "Didn't find a .app file; $Filename" && exit 1
+         
+         echo "Generating sandbox entitlements.plist..."
+         echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>' > entitlements.plist
+         
+         echo "Inserting entitlements..."
+         codesign --force --entitlements /Volumes/Code/Condense_Studio5App/Macos/Studio5App.entitlements --sign "${{env.SigningIdentifier}}" $AppFilename
+         
          echo "Packaging $AppFilename into .pkg"
          xcrun productbuild --component $AppFilename /Applications $AppFilename.pkg
          echo "ArtifactFilename=$AppFilename.pkg" >> "$GITHUB_OUTPUT"
