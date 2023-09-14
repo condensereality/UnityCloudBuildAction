@@ -155,6 +155,22 @@ This can be implemented in a workflow with just a single step
 - `IosBundleShortVersionString` can be 0. AppStoreConnect correctly uses the bundle version in the ipa `todo: is this the build number?`
 - Note; the `.p8` contents should be stored in `./private_keys/AuthKey_$APPSTORECONNECT_AUTH_KEY.p8` (same filename as downloaded in `keys` section of appstore connecct
 
+Signing Macos build for MacAppStore
+-------------
+This workflow [currently forces] adding sandbox entitlements for mac app store builds.
+To do so, the app needs to be re-signed (which also means you can submit unsigned apps).
+- Mostly following this approach https://docs.github.com/en/actions/deployment/deploying-xcode-applications/installing-an-apple-certificate-on-macos-runners-for-xcode-development
+- Export `Apple distribution` certificate to `.p12`. Note this `CertificatePassword` you create.
+- Convert contents to base64 and put in a secret in your repository/org, eg. `APPLEDISTRIBUTION_CERTIFICATE_BASE64`
+	- `base64 -i ./AppleDistribution_Certificate.p12 > AppleDistrubtion_Certificate.p12.base64.txt`
+	- Pass that secret into the shared workflow input `AppSigningCertificate_Base64`
+	- Add the `CertificatePassword` to a secret, eg. `APPLEDISTRIBUTION_CERTIFICATE_PASSWORD`
+	- Pass that password secret into the shared workflow input `AppSigningCertificate_Password`
+- Get Provisioning profile from `https://developer.apple.com/account/resources/profiles/list -> Profiles`
+	- Create/Download a profile for `macOS` type=`App Store`
+	- Should be a `.provisionprofile` file
+	- Encode this to base64 and include into a secret `APPLE_PROVISIONING_PROFILE_BASE64`
+
 
 Uploading to Oculus Development Release Channels
 ================================

@@ -84,14 +84,21 @@ on:
        
      SlackBotAuthToken: # passing this enables slack reporting
        required: false
-       
+     
+     # for appstore connect upload (ios & mac & tvos)
      AppStoreConnect_Auth_Key:
        required: false
      AppStoreConnect_Auth_P8_Base64:
        required: false
      AppStoreConnect_Auth_Issuer:
        required: false
-       
+     
+     # for re-signing mac app
+     AppSigningCertificate_Base64:
+       required: false
+     AppSigningCertificate_Password:
+       required: false
+
      OculusAppId:
        required: false
      OculusAppSecret:
@@ -168,25 +175,42 @@ jobs:
       # gr: actually, Transporter, altool etc, all require apps to be in a .pkg
       #		they will output inaccurate info.plist errors or errors about the toolchain
       #		https://stackoverflow.com/questions/60085388/expected-file-format-for-altool-upload-app-for-mac-os-app-store-app
-      # -x excludes patterns when unzipping
       - name: Package mac .app
         id: PackageApp
         if: endsWith( env.ARTIFACT_FILENAME, '.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
         env:
           SigningIdentifier: "Apple Distribution"
+          CertificateFilePath: "${{ runner.temp }}/AppSigningCertificate.cer"
+          
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}, without do-not-ship files, into UnzippedArtifact/..."
          ls -l ./
+         # -x excludes patterns when unzipping
          unzip ${{ env.ARTIFACT_FILENAME }} -d "UnzippedArtifact" -x "*DoNotShip*" -x "*DontShip*"
          echo "Listing ./UnzippedArtifact..."
          ls -l ./UnzippedArtifact
          export AppFilename=$(find . -name *.app)
          [ -z "$AppFilename" ] && echo "Didn't find a .app file; $Filename" && exit 1
          
+         echo "Listing identitys for code signing..."
+         security find-identity -p codesigning -v
+
+         # gr: previous action https://github.com/NewChromantics/import-signing-certificate
+         echo "Installing certificate..."
+         # todo: install to temporary keychain
+         echo "${{ secrets.AppSigningCertificate_Base64 }}" | base64 -d > ${{ env.CertificateFilePath }}
+         # -A allows any app to use this certificate
+         #security import ${{ env.CertificateFilePath }} -passphrase "${{ secrets.AppSigningCertificate_Base64 }}" -A --type cert --format pkcs12 --keychain $KEYCHAIN_PATH
+         security import ${{ env.CertificateFilePath }} -passphrase "${{ secrets.AppSigningCertificate_Base64 }}" -A --type cert --format pkcs12
+
+         echo "Listing identitys for code signing post-certificate install..."
+         security find-identity -p codesigning -v
+
          echo "Generating sandbox entitlements.plist..."
          echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>' > entitlements.plist
-         
-         echo "Inserting entitlements..."
+
+         # can change ident here with --ident "com.xxx.yyy"
+         echo "Inserting entitlements... & codesigning with ${{env.SigningIdentifier}}"
          codesign --force --entitlements /Volumes/Code/Condense_Studio5App/Macos/Studio5App.entitlements --sign "${{env.SigningIdentifier}}" $AppFilename
          
          echo "Packaging $AppFilename into .pkg"
