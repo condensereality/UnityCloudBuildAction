@@ -77,6 +77,10 @@ on:
      SteamBranch:
        required: false
        type: string
+     SteamDepotId:
+       required: false
+       type: string # this should be a number, but github shared workflows cannot convert number to number (tries to interpret as integer)
+
 
    secrets:
      UnityCloudBuildApiKey:
@@ -181,6 +185,7 @@ jobs:
         env:
           SigningIdentifier: "Apple Distribution"
           CertificateFilePath: "${{ runner.temp }}/AppSigningCertificate.p12"
+          EntitlementsFilePath: "${{ runner.temp }}/Entitlements.plist"
           
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}, without do-not-ship files, into UnzippedArtifact/..."
@@ -208,11 +213,11 @@ jobs:
          security find-identity -p codesigning -v
 
          echo "Generating sandbox entitlements.plist..."
-         echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>' > entitlements.plist
+         echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>' > ${{ env.EntitlementsFilePath }}
 
          # can change ident here with --ident "com.xxx.yyy"
          echo "Inserting entitlements... & codesigning with ${{env.SigningIdentifier}}"
-         codesign --force --entitlements /Volumes/Code/Condense_Studio5App/Macos/Studio5App.entitlements --sign "${{env.SigningIdentifier}}" $AppFilename
+         codesign --force --entitlements  ${{ env.EntitlementsFilePath }} --sign "${{env.SigningIdentifier}}" $AppFilename
          
          echo "Packaging $AppFilename into .pkg"
          xcrun productbuild --component $AppFilename /Applications $AppFilename.pkg
@@ -337,6 +342,7 @@ jobs:
           buildDescription: ${{ steps.SteamBuildDescription.outputs.BuildDescription }}
           rootPath: "."
           depot1Path: ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}
+          firstDepotIdOverride: ${{ inputs.SteamDepotId }}
           releaseBranch: ${{ inputs.SteamBranch }}
 
   UploadToUnityGameServerHosting:
