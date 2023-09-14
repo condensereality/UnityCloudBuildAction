@@ -180,7 +180,7 @@ jobs:
         if: endsWith( env.ARTIFACT_FILENAME, '.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
         env:
           SigningIdentifier: "Apple Distribution"
-          CertificateFilePath: "${{ runner.temp }}/AppSigningCertificate.cer"
+          CertificateFilePath: "${{ runner.temp }}/AppSigningCertificate.p12"
           
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}, without do-not-ship files, into UnzippedArtifact/..."
@@ -200,8 +200,9 @@ jobs:
          # todo: install to temporary keychain
          echo "${{ secrets.AppSigningCertificate_Base64 }}" | base64 -d > ${{ env.CertificateFilePath }}
          # -A allows any app to use this certificate
-         #security import ${{ env.CertificateFilePath }} -passphrase "${{ secrets.AppSigningCertificate_Base64 }}" -A --type cert --format pkcs12 --keychain $KEYCHAIN_PATH
-         security import ${{ env.CertificateFilePath }} -passphrase "${{ secrets.AppSigningCertificate_Base64 }}" -A --type cert --format pkcs12
+         # only short hand input args!
+         # filenames error if in quotes
+         security import ${{ env.CertificateFilePath }} -P "${{ secrets.AppSigningCertificate_Base64 }}" -A -t cert -f pkcs12
 
          echo "Listing identitys for code signing post-certificate install..."
          security find-identity -p codesigning -v
