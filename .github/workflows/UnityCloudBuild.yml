@@ -173,6 +173,30 @@ jobs:
           name: ${{ env.ARTIFACT_FILENAME }}
 
 
+      # gr: need a better way to see if we need certificates
+      - name: Install signing credentials
+        if: ${{ inputs.AppSigningCertificate_Base64 != '' }}
+        env:
+          CertificateFilePath: "${{ runner.temp }}/AppSigningCertificate.p12"
+          
+        run: |
+         echo "Listing identitys for code signing..."
+         security find-identity -p codesigning -v
+
+         # gr: previous action https://github.com/NewChromantics/import-signing-certificate
+         echo "Installing certificate..."
+         # todo: install to temporary keychain
+         echo "${{ secrets.AppSigningCertificate_Base64 }}" | base64 -d > ${{ env.CertificateFilePath }}
+         # -A allows any app to use this certificate
+         # only short hand input args!
+         # filenames error if in quotes
+         set -o pipefail && security import ${{ env.CertificateFilePath }} -P "${{ secrets.AppSigningCertificate_Password }}" -A -t cert -f pkcs12
+
+         echo "Listing identitys for code signing post-certificate install..."
+         security find-identity -p codesigning -v
+         
+         echo "todo: check identity is in list above"
+
       # mac builds are contained in .zip. This is okay, but includes the giant DoNotShip folders, so strip them out
       # altool doesn't accept .app folder, so mac apps need to be in .zip
       # Check what IOS does... that may be a .ipa inside a zip... but altool just finds ipa the ipa (or the artifact may be .ipa)
@@ -184,7 +208,6 @@ jobs:
         if: endsWith( env.ARTIFACT_FILENAME, '.zip' )	#	gr: artifacts download as .zip.zip but they download here as .zip
         env:
           SigningIdentifier: "Apple Distribution"
-          CertificateFilePath: "${{ runner.temp }}/AppSigningCertificate.p12"
           EntitlementsFilePath: "${{ runner.temp }}/Entitlements.plist"
           
         run: |
@@ -198,18 +221,6 @@ jobs:
          [ -z "$AppFilename" ] && echo "Didn't find a .app file; $Filename" && exit 1
          
          echo "Listing identitys for code signing..."
-         security find-identity -p codesigning -v
-
-         # gr: previous action https://github.com/NewChromantics/import-signing-certificate
-         echo "Installing certificate..."
-         # todo: install to temporary keychain
-         echo "${{ secrets.AppSigningCertificate_Base64 }}" | base64 -d > ${{ env.CertificateFilePath }}
-         # -A allows any app to use this certificate
-         # only short hand input args!
-         # filenames error if in quotes
-         security import ${{ env.CertificateFilePath }} -P "${{ secrets.AppSigningCertificate_Password }}" -A -t cert -f pkcs12
-
-         echo "Listing identitys for code signing post-certificate install..."
          security find-identity -p codesigning -v
 
          echo "Generating sandbox entitlements.plist..."
