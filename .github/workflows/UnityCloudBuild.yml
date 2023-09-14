@@ -173,9 +173,9 @@ jobs:
           name: ${{ env.ARTIFACT_FILENAME }}
 
 
-      # gr: need a better way to see if we need certificates
+      # gr: need a better way to see if we need certificates, as we may want to expand to ios
       - name: Install signing credentials
-        if: ${{ inputs.AppSigningCertificate_Base64 != '' }}
+        if: ${{ inputs.TestFlightAppPlatform == 'macos' }}
         env:
           CertificateFilePath: "${{ runner.temp }}/AppSigningCertificate.p12"
           
