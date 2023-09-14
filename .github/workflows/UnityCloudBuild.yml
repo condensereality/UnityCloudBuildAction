@@ -202,7 +202,7 @@ jobs:
          # -A allows any app to use this certificate
          # only short hand input args!
          # filenames error if in quotes
-         security import ${{ env.CertificateFilePath }} -P "${{ secrets.AppSigningCertificate_Base64 }}" -A -t cert -f pkcs12
+         security import ${{ env.CertificateFilePath }} -P "${{ secrets.AppSigningCertificate_Password }}" -A -t cert -f pkcs12
 
          echo "Listing identitys for code signing post-certificate install..."
          security find-identity -p codesigning -v
