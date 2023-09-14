@@ -217,7 +217,8 @@ jobs:
 
          # can change ident here with --ident "com.xxx.yyy"
          echo "Inserting entitlements... & codesigning with ${{env.SigningIdentifier}}"
-         codesign --force --entitlements  ${{ env.EntitlementsFilePath }} --sign "${{env.SigningIdentifier}}" $AppFilename
+         # use "set output to pipe to fail" so any prompts will error
+         set -o pipefail && codesign --force --entitlements  ${{ env.EntitlementsFilePath }} --sign "${{env.SigningIdentifier}}" $AppFilename
          
          echo "Packaging $AppFilename into .pkg"
          xcrun productbuild --component $AppFilename /Applications $AppFilename.pkg
