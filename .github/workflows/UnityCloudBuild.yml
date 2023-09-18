@@ -235,6 +235,13 @@ jobs:
       ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
 
     steps:
+      - name: Check UploadToSteam inputs
+        run: |
+          [ -n "${{ inputs.SteamUsername }}" ]
+          [ -n "${{ inputs.SteamAppId }}" ]
+          [ -n "${{ inputs.SteamBranch }}" ]
+          [ -n "${{ inputs.SteamDepot }}" ]
+
       - name: Download Build Artifact
         uses: actions/download-artifact@v2
         with:
@@ -249,13 +256,6 @@ jobs:
          ls -l ./
          unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" -x "*DontShip*"
          echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
-
-      - name: Check UploadToSteam inputs
-        run: |
-          [ -n "${{ inputs.SteamUsername }}" ]
-          [ -n "${{ inputs.SteamAppId }}" ]
-          [ -n "${{ inputs.SteamBranch }}" ]
-          [ -n "${{ inputs.SteamDepot }}" ]
 
       - name: Deploy to Steam
         uses: game-ci/steam-deploy@v3 # v3 doesn't need ssfn
