@@ -74,6 +74,9 @@ on:
      SteamBranch:
        required: false
        type: string
+     SteamDepot:
+       required: false
+       type: string
 
    secrets:
      UnityCloudBuildApiKey:
@@ -247,10 +250,21 @@ jobs:
          unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" -x "*DontShip*"
          echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
 
-      - name: Format Steam Build Description
-        id: SteamBuildDescription
+      - name: Check UploadToSteam inputs
         run: |
-          echo BuildDescription="${{ github.ref }} ${{ github.sha }}" >> $GITHUB_OUTPUT
+          [ -z "${{ inputs.SteamUsername }}" ] && echo "SteamUsername input is empty" && exit 1
+          [ -z "${{ inputs.SteamAppId }}" ] && echo "SteamAppId input is empty" && exit 1
+          [ -z "${{ inputs.SteamBranch }}" ] && echo "SteamBranch input is empty" && exit 1
+          [ -z "${{ inputs.SteamDepot }}" ] && echo "SteamDepot input is empty" && exit 1
+       
+      - name: Check nputs
+        id: UnzipArtifacts
+        run: |
+         [ -z "$ARTIFACT_FILENAME" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
+         echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
+         ls -l ./
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" -x "*DontShip*"
+         echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Steam
         uses: game-ci/steam-deploy@v3 # v3 doesn't need ssfn
@@ -260,6 +274,8 @@ jobs:
           appId: ${{ inputs.SteamAppId }}
           buildDescription: ${{ steps.SteamBuildDescription.outputs.BuildDescription }}
           rootPath: "."
+          #	gr: to upload depots indivudually, we now force user to specify a depot
+          firstDepotIdOverride: ${{ inputs.SteamBranch }}
           depot1Path: ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}
           releaseBranch: ${{ inputs.SteamBranch }}
 
