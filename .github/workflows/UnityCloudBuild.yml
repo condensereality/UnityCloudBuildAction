@@ -252,11 +252,10 @@ jobs:
 
       - name: Check UploadToSteam inputs
         run: |
-          [ -z "${{ inputs.SteamUsername }}" ] && echo "SteamUsername input is empty" && exit 1
-          [ -z "${{ inputs.SteamAppId }}" ] && echo "SteamAppId input is empty" && exit 1
-          [ -z "${{ inputs.SteamBranch }}" ] && echo "SteamBranch input is empty" && exit 1
-          [ -z "${{ inputs.SteamDepot }}" ] && echo "SteamDepot input is empty" && exit 1
-       
+          [ -n "${{ inputs.SteamUsername }}" ]
+          [ -n "${{ inputs.SteamAppId }}" ]
+          [ -n "${{ inputs.SteamBranch }}" ]
+          [ -n "${{ inputs.SteamDepot }}" ]
 
       - name: Deploy to Steam
         uses: game-ci/steam-deploy@v3 # v3 doesn't need ssfn
