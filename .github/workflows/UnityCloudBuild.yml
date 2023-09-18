@@ -258,7 +258,6 @@ jobs:
           [ -z "${{ inputs.SteamDepot }}" ] && echo "SteamDepot input is empty" && exit 1
        
       - name: Check nputs
-        id: UnzipArtifacts
         run: |
          [ -z "$ARTIFACT_FILENAME" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
