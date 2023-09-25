@@ -527,6 +527,7 @@ def main(
     if existing_build_number != None:
        build_number = existing_build_number
        build_target_id = primary_build_target
+       raise Exception(f"existing_build_number code is currently broken - it was building the Nth build of the primary_build_target, not the branch-ref specified build")
        logger.info(f"Using existing build target/number {build_target_id}/{build_number}...")
        
     else:
