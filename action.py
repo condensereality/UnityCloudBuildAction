@@ -53,6 +53,91 @@ def write_github_output_and_env(key: str,value: str) -> None:
 write_github_output_and_env("github_output_test_key","test_value")
 
 
+
+
+
+
+
+
+
+
+
+class BranchAndLabel:
+	def __init__(
+		self,
+		branch: str,
+		label: str,
+	) -> None:
+		self.branch = branch
+		self.label = label
+
+
+#	given git inputs (branch_ref and/or head_ref) - filter down to the branch we want to use
+#	return a .branch...
+#		- that  branch is used by unity github with
+#			git clone --branch xxxx
+#		- it does work for tags --branch v0.0.1
+#		- this does NOT work for pull requests; refs/pull/6/merge; refs/tag/xxx
+#		- so for pull requests, we need to use head_ref (refs/heads/xyz)
+#	and return a .label...
+#		that will be used as the name of the build target
+def get_branch_and_label(branch_ref,head_ref):
+	
+	head_ref = head_ref or ""
+	
+	# gr: is this redundant, and always true if head_ref != empty?
+	is_pull_request = branch_ref.startswith("refs/pull/")
+		
+	# need to strip branch name down to what will be passed to git clone --branch XXX in unity cloud build
+	# 	git clone --branch xxxx
+	#		this does NOT work for pull requests; refs/pull/6/merge; refs/tag/xxx
+	#		for pull requests, we need to use head_ref
+	branch = branch_ref
+	branch = branch.replace("refs/tags/", "")
+	branch = branch.replace("refs/heads/", "")
+	branch = branch.replace("refs/pull/", "pull request ")
+
+	# for pull requests the label wants to be branch_ref to indicate it's a pr
+	label = branch
+	
+	# strip the head ref down to a branch, in case we use it
+	head_ref = head_ref.replace("refs/heads/", "")
+
+	if is_pull_request:
+		branch = head_ref
+
+	return BranchAndLabel( branch, label )
+
+
+
+#	get a sanitised target name for unity cloud build
+#	note: this SHOULD use primary_build_target if the branch is the same as the primary target's branch
+#		ie. we dont get "mac-main", just "mac"
+#		but at this point we are still dealing with strings
+def get_build_targetname(primary_build_target,branch_and_label):
+	
+	if not primary_build_target:
+		raise Exception(f"get_build_target_name() requires primary_build_target")
+	if not branch_and_label:
+		raise Exception(f"get_build_target_name() requires branch_and_label")
+
+	#	sanitise label for unity cloud build's restrictions
+	target_name = branch_and_label.label
+	# replace any special chars and ensure length is max of 56 chars
+	# 64 is the limit, but we allow some free chars for platform
+	# todo: just do 64-(prefix-length)
+	target_name = re.sub("[^0-9a-zA-Z]+", "-", target_name)
+	target_name = f"{primary_build_target}-{target_name}"
+	# 64 char limit for targets (citation needed)
+	target_name = target_name[:63]
+	# targets must be lower case
+	target_name = target_name.lower()
+	
+	return target_name
+	
+	
+
+
 # client that just connects to unity cloud build
 class UnityCloudClient:
     def __init__(
@@ -199,6 +284,9 @@ class UnityCloudBuilder:
         allow_new_target: bool,
     ) -> None:
         
+        if not primary_build_target:
+            raise Exception(f"Missing primary_build_target. required")
+
         if not github_branch_ref:
             raise Exception(f"Missing github_branch_ref. required")
 
@@ -267,7 +355,7 @@ class UnityCloudBuilder:
 
 
 
-    def get_build_target_id(self) -> str:
+    def get_new_build_target_id(self) -> str:
         # Creates a new build target in Unity Cloud Build if we are dealing with a pull request.
         # Otherwise we return the primary build target (user's original configuration)
 	
@@ -423,7 +511,7 @@ def create_new_build(
 
 	# obtain the build target we need to run against
 	# this will create a new target if it doesnt exist
-	build_target_id = builder.get_build_target_id()
+	build_target_id = builder.get_new_build_target_id()
 	logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
 
 	# create a new build for the specified build target
@@ -511,8 +599,32 @@ def main(
         for project in projects:
             client.list_build_targets( project )
 
+    if not project_id:
+        raise Exception(f"No project_id specified, don't know what to build/fetch")
+
     if existing_build_number != None and primary_build_target == None:
         raise Exception(f"existing_build_number({existing_build_number}) supplied, but missing required primary_build_target({primary_build_target})")
+
+    if not primary_build_target:
+        raise Exception(f"Missing primary_build_target. required")
+
+    if not github_branch_ref:
+        logger.info(f"No github_branch_ref specified. required to find build target")
+
+
+    # run the branch_refs to config.branch & label functions early to check we're doing it right
+    branch_and_label = get_branch_and_label( github_branch_ref, github_head_ref )
+    logger.info(f"Input branch refs -> label={branch_and_label.label} branch={branch_and_label.branch} (from github_branch_ref={github_branch_ref} github_head_ref={github_head_ref})")
+
+    build_target_name = get_build_targetname( primary_build_target, branch_and_label )
+    logger.info(f"Input -> build_target_name={build_target_name}")
+
+    if allow_new_target == False:
+        logger.info(f"allow_new_target={allow_new_target}, listing all builds for {build_target_name})")
+        
+        raise Exception(f"todo: list all builds for {build_target_name}")
+    
+    logger.info(f"use allow_new_target=false to list all existing builds for {build_target_name}")
 
 
     # get variables we're eventually going to use
@@ -528,6 +640,7 @@ def main(
        logger.info(f"Using existing build target/number {build_target_id}/{build_number}...")
        
     else:
+        logger.info(f"Using existing build target/number {build_target_id}/{build_number}...")
         build_meta = create_new_build(
             client,
             project_id,
