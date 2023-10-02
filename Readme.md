@@ -12,6 +12,17 @@ do this, all the build would be run against the main branch and not the changes 
 If a PR has further changes to pushed to it after initially being opened, the action will re-use the previous setup PR build target.
 Doing this allows us to make use of Unity Cloud Build's build target caching mechanism which speeds up subsequent builds slightly.
 
+Action Script Usage
+-----------------
+Use the following commands to extract all the information required from UnityCloudBuild=st
+- Run with just `org_id`, to get a list of projects & their build targets
+	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG`
+- Run with `org_id` and `project_id` to get a list of build targets
+	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG --project_id=YourProjectName`
+- Run with `org_id`, `project_id`, `primary_build_target` and `github_branch_ref` to get a list of existing builds (for use with `existing_build_number`)
+	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG --project_id=YourProjectName --primary_build_target=mac --github_branch_ref=refs/tags/v1.2.3 --allow_new_target=false`
+
+
 Debugging
 ----------------
 - Don't hesitate to use Unity's own unity-cloud-build-api checker; [https://build-api.cloud.unity3d.com/docs/1.0.0/index.html](https://build-api.cloud.unity3d.com/docs/1.0.0/index.html)
