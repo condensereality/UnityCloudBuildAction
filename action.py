@@ -522,7 +522,7 @@ def wait_for_successfull_build(client: UnityCloudClient, project_id:str, build_t
 			logger.info(f"Build {status} meta: {pretty_json(build_meta)}")
 			raise Exception(f"Build {project_id}/{build_target_id}/{build_number} failed with status: {status}")
 
-		logger.info(f"Build still running ({status})... {pretty_json(useful_meta)}")
+		logger.info(f"Build not finished ({status})... {pretty_json(useful_meta)}")
 
 
 
