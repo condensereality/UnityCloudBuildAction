@@ -222,51 +222,51 @@ class UnityCloudClient:
         return build_targets
 
             
-    def get_build_meta(self, project_id: str, build_target_id: str, build_number: int) -> None:
+    def get_build_meta(self, project_id: str, build_target_name: str, build_number: int) -> None:
         #	gets the status of the running build, returns None if non-error (timeout)
-        logger.info(f"Checking status of build {project_id}/{build_target_id}/{build_number}...")
-        data = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_id}/builds/{build_number}")
+        logger.info(f"Checking status of build {project_id}/{build_target_name}/{build_number}...")
+        data = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_name}/builds/{build_number}")
         return data
         
         
-    def get_successfull_build_meta(self, project_id: str, build_target_id: str, build_number: int) -> None:
+    def get_successfull_build_meta(self, project_id: str, build_target_name: str, build_number: int) -> None:
         #	get build status of a build, but throw if it's failed
         #	Build status returned can be one of the below
         #	[queued, sentToBuilder, started, restarted, success, failure, canceled, unknown]
         #	We class "failure", "cancelled" and "unknown" as failures and return exit code 1.
         #	We class "success" as successful
         #	All other statuses, we return no info back (None)
-        build_meta = self.get_build_meta( project_id, build_target_id, build_number )
+        build_meta = self.get_build_meta( project_id, build_target_name, build_number )
 
         failed_statuses = ["failure", "canceled", "cancelled", "unknown"]
         success_statuses = ["success"]
         status = build_meta["buildStatus"]
 
         if status in failed_statuses:
-            raise Exception(f"Build {project_id}/{build_target_id}/{build_number} failed with status: {status}; meta={build_meta}")
+            raise Exception(f"Build {project_id}/{build_target_name}/{build_number} failed with status: {status}; meta={build_meta}")
 
         if status in success_statuses:
-            logger.info(f"Build {project_id}/{build_target_id}/{build_number} completed successfully!")
+            logger.info(f"Build {project_id}/{build_target_name}/{build_number} completed successfully!")
             return build_meta
                 
-        logger.info(f"Build {project_id}/{build_target_id}/{build_number} is still running: {status}; meta={pretty_json(build_meta)}")
+        logger.info(f"Build {project_id}/{build_target_name}/{build_number} is still running: {status}; meta={pretty_json(build_meta)}")
         return None
 
     def get_share_url_from_share_id(self, share_id:str ) -> str:
         return f"https://developer.cloud.unity3d.com/share/share.html?shareId={share_id}"
 
-    def create_share_url(self, project_id:str, build_target_id: str,build_number: int) -> str:
+    def create_share_url(self, project_id:str, build_target_name: str,build_number: int) -> str:
         # if a share already exists for this build, it will be revoked and a new one created (note: same url as GET share meta)
-        create_share_url = f"/projects/{project_id}/buildtargets/{build_target_id}/builds/{build_number}/share"
+        create_share_url = f"/projects/{project_id}/buildtargets/{build_target_name}/builds/{build_number}/share"
         post_body = {'shareExpiry':''}
         share_meta = self.post_request( create_share_url, post_body )
         logger.info(f"Created share {share_meta}")
         return self.get_share_url_from_share_id( share_meta["shareid"] )
     
     
-    def get_share_url(self, project_id:str, build_target_id: str,build_number: int) -> str:
+    def get_share_url(self, project_id:str, build_target_name: str,build_number: int) -> str:
         # fetch share id
-        share_meta = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_id}/builds/{build_number}/share")
+        share_meta = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_name}/builds/{build_number}/share")
         # responds with
         # 200{ "shareid": "-1k77srZTd",	"shareExpiry": "2022-11-30T11:57:53.448Z" }
         # 404 Error: No share found.
@@ -285,10 +285,10 @@ class UnityCloudClient:
 
         return buildnumbers
 
-    def get_build_target_meta(self, project_id:str, build_target_id: str) -> Dict:
+    def get_build_target_meta(self, project_id:str, build_target_name: str) -> Dict:
         #	Looks up a build target from Unity Cloud Build
-        logger.info(f"Fetching build target meta for target={project_id}/{build_target_id}...")
-        target_meta = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_id}")
+        logger.info(f"Fetching build target meta for target={project_id}/{build_target_name}...")
+        target_meta = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_name}")
         return target_meta
 
 
@@ -337,16 +337,16 @@ class UnityCloudBuilder:
         after=tenacity.after_log(logger, logging.DEBUG)
     )
     def set_build_target_env_var(
-        self, build_target_id: str, key: str, value: str
+        self, build_target_name: str, key: str, value: str
     ) -> None:
         """
         sets an env var to a build target.
 
         TODO: If we need more than a couple of env vars- we should update this func to set vars in bulk
         """
-        logger.info(f"Setting env var: {key} on target: {build_target_id}...")
+        logger.info(f"Setting env var: {key} on target: {build_target_name}...")
         resp = requests.put(
-            f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_id}/envvars",
+            f"{self.api_base_url}/orgs/{self.org_id}/projects/{self.project_id}/buildtargets/{build_target_name}/envvars",
             headers=self.client.get_request_headers(),
             json={key: value},
         )
@@ -520,7 +520,7 @@ def wait_for_successfull_build(client: UnityCloudClient, project_id:str, build_t
 
 		if status in failed_statuses:
 			logger.info(f"Build {status} meta: {pretty_json(build_meta)}")
-			raise Exception(f"Build {project_id}/{build_target_id}/{build_number} failed with status: {status}")
+			raise Exception(f"Build {project_id}/{build_target_name}/{build_number} failed with status: {status}")
 
 		logger.info(f"Build not finished ({status})... {pretty_json(useful_meta)}")
 
@@ -673,7 +673,7 @@ def main(
 
     # print out any sharing info to env var
     if create_share:
-        share_url = client.create_share_url( project_id, build_target_id, build_number )
+        share_url = client.create_share_url( project_id, build_target_name, build_number )
         logger.info(f"Got sharing url {share_url}")
         write_github_output_and_env("SHARE_URL", share_url)
             
