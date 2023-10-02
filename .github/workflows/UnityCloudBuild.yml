@@ -38,6 +38,11 @@ on:
        required: false
        type: string
 
+     # temporary seperate macos-path to use https://github.com/condensereality/AppleStoreUploadAction action
+     UploadToMacosTestFlight:
+       required: false
+       type: boolean
+
      UploadToTestFlight:
        required: false
        type: boolean
@@ -121,7 +126,7 @@ jobs:
        unity_cloud_build_project_id: ${{ inputs.UnityCloudProject }}
        unity_cloud_build_polling_interval: 60
        unity_cloud_build_primary_target: ${{ inputs.UnityCloudBuildTarget }}
-       unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToSteam }}
+       unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToMacosTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToSteam }}
        unity_cloud_build_create_share: ${{ inputs.ReportShareUrl }}
        # github.ref is the fully formed ref, eg refs/pull/6/merge or refs/tag/v0.1.2
        # github.head_ref is present in pull requests, and is the SOURCE branch (eg. YourFeatureBranch)
@@ -132,13 +137,49 @@ jobs:
        unity_cloud_build_use_existing_build_number: ${{ inputs.UnityCloudExistingBuildNumber }}
     
     - name: Store binary as artifact
-      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToSteam }}
+      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToMacosTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToSteam }}
       uses: actions/upload-artifact@v2
       with:
         name: ${{ steps.build.outputs.ARTIFACT_FILENAME }}
         path: ${{ steps.build.outputs.ARTIFACT_FILEPATH }}
         if-no-files-found: error     
       
+  UploadToMacosTestFlight:
+    if: ${{ inputs.UploadToMacosTestFlight }}
+    name: Upload to TestFlight (macos)
+    needs: Build
+    runs-on: macos-latest
+    steps:
+      - name: "Unzip macos.app"
+        id: ExtractArtifactApp
+        env:
+         ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
+        run: |
+         echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}, without do-not-ship files, into UnzippedArtifact/..."
+         ls -l ./
+         # -x excludes patterns when unzipping
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "UnzippedArtifact" -x "*DoNotShip*" -x "*DontShip*"
+         echo "Listing ./UnzippedArtifact..."
+         ls -l ./UnzippedArtifact
+         export AppFilename=$(find . -name *.app)
+         [ -z "$AppFilename" ] && echo "Didn't find a .app file; $Filename" && exit 1
+         echo "ArtifactFilename=$AppFilename" >> "$GITHUB_OUTPUT"
+        
+      - name: "Send to upload action"
+        uses: condensereality/AppleStoreUploadAction@main
+        with:
+          AppFilename: ${{ steps.ExtractArtifactApp.outputs.ArtifactFilename }}
+          Upload: false # temporarily dont publish
+          SignApp: true
+          SignPackage: true
+          TeamIdentifier: ${{ inputs.AppStoreConnect_TeamIdentifier }}
+          TestFlightPlatform: macos
+          AppStoreConnect_Auth_Key: ${{ secrets.AppStoreConnect_Auth_Key }}
+          AppStoreConnect_Auth_P8_Base64: ${{ secrets.AppStoreConnect_Auth_P8_Base64 }}
+          AppStoreConnect_Auth_Issuer: ${{ secrets.AppStoreConnect_Auth_Issuer }}
+          SigningCertificate_Base64: ${{ secrets.SigningCertificate_Base64 }}
+          SigningCertificate_Password: ${{ secrets.SigningCertificate_Password }}
+          ProvisioningProfile_Base64: ${{ secrets.ProvisioningProfile_Base64 }}
       
       
   UploadToTestFlight:
