@@ -61,6 +61,9 @@ class UnityCloudClient:
         org_id: str,
     ) -> None:
     
+        if not org_id:
+            raise Exception(f"Org_id missing({org_id})")
+
         logger.info("Setting up Unity Cloud Client...")
         self.api_base_url = "https://build-api.cloud.unity3d.com/api/v1"
         self.org_id = org_id.lower()
