@@ -217,8 +217,8 @@ class UnityCloudClient:
         for build_target in meta:
             build_targets.append( build_target["buildtargetid"] )
 
-        build_targets_string = ", ".join(build_targets)
-        logger.info(f"Got project {project_id} build targets; {build_targets_string}")
+        #build_targets_string = ", ".join(build_targets)
+        #logger.info(f"Got project {project_id} build targets; {build_targets_string}")
         return build_targets
 
             
@@ -254,7 +254,7 @@ class UnityCloudClient:
             logger.info(f"Build {project_id}/{build_target_id}/{build_number} completed successfully!")
             return build_meta
                 
-        logger.info(f"Build {project_id}/{build_target_id}/{build_number} is still running: {status}; meta={build_meta}")
+        logger.info(f"Build {project_id}/{build_target_id}/{build_number} is still running: {status}; meta={pretty_json(build_meta)}")
         return None
 
     def get_share_url_from_share_id(self, share_id:str ) -> str:
@@ -290,12 +290,17 @@ class UnityCloudClient:
 
         return buildnumbers
 
+    def get_build_target_meta(self, project_id:str, build_target_id: str) -> Dict:
+        #	Looks up a build target from Unity Cloud Build
+        logger.info(f"Fetching build target meta for target={project_id}/{build_target_id}...")
+        target_meta = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_id}")
+        return target_meta
 
 
 
-        
-        
-        
+
+
+
 # Handles build target setup & build execution to a client
 class UnityCloudBuilder:
     def __init__(
@@ -323,21 +328,13 @@ class UnityCloudBuilder:
     def get_build_targetname(self):
         # if the primary target's branch is the same as the branch we're using
         # then the build target is the primary target
-        primary_target_meta = self.get_build_target_meta( self.primary_build_target )
+        primary_target_meta = self.client.get_build_target_meta( self.project_id, self.primary_build_target )
         primary_build_branch = primary_target_meta["settings"]["scm"]["branch"]
         if primary_build_branch == self.branch_and_label.branch:
             return self.primary_build_target
 
         target_name = get_build_targetname( self.primary_build_target, self.branch_and_label )
         return target_name
-
-
-    def get_build_target_meta(self, build_target_id: str) -> Dict:
-        #	Looks up a build target from Unity Cloud Build
-        logger.info(f"Fetching build target meta for target={build_target_id}...")
-        target_meta = self.client.send_request(f"/projects/{self.project_id}/buildtargets/{build_target_id}")
-        return target_meta
-
 
     @tenacity.retry(
         wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
@@ -365,62 +362,54 @@ class UnityCloudBuilder:
 
 
 
-    def get_new_build_target_id(self) -> str:
-        # Creates a new build target in Unity Cloud Build if we are dealing with a pull request.
-        # Otherwise we return the primary build target (user's original configuration)
-	
-        # get primary build target so that we can copy across all relevant settings to our PR target
-        # always fetch it, to validate if the user-input target id is correct
-        primary_target_meta = self.get_build_target_meta(self.primary_build_target_id)
-        logger.info(f"Primary Build Target Meta: {primary_target_meta}")
-        primary_build_branch = primary_target_meta["settings"]["scm"]["branch"]
+    def get_build_target_meta(self,allow_new_target:bool):
+        build_target_name = self.get_build_targetname()
         
-        is_primary_build_target_branch_match = self.branch_name == primary_build_branch
+        try:
+            existing_meta = self.client.get_build_target_meta( self.project_id, build_target_name )
+            return existing_meta
+        except Exception as e:
+            logger.info(f"No build target meta for {build_target_name}... {e}")
         
-        # primary target already pointing at this branch/commit, return it as we dont need a new one
-        if is_primary_build_target_branch_match:
-            return self.primary_build_target_id
+        if not allow_new_target:
+            raise Exception(f"No built target for {build_target_name} and not allowed to create a new one")
         
-        logger.info(f"Building branch {self.branch_name} doesn't match primary build target branch {primary_build_branch}, creating new target")
+        return self.create_new_build_target(build_target_name)
 
-        # todo: find existing build target with matching branch name, with matching configuration settings?
-        if not self.allow_new_target:
-            raise Exception(f"Creating new build targets not allowed")
 
-        # replace any special chars and ensure length is max of 56 chars
-        # 64 is the limit, but we allow some free chars for platform
-        # todo: just do 64-(prefix-length)
-        new_target_name = re.sub("[^0-9a-zA-Z]+", "-", self.branch_name)
-        new_target_name = f"{self.primary_build_target_id}-{new_target_name}"
-        # 64 char limit for targets (citation needed)
-        new_target_name = new_target_name[:63]
-        # targets must be lower case
-        new_target_name = new_target_name.lower()
-
-        logger.info(f"Creating new build target({new_target_name}) for {self.project_id} for branch {self.branch_name}...")
+    # returns meta of new target
+    def create_new_build_target(self,build_target_name:str) -> str:
+        #	clone the primary build target and set up to create a new one on self's branch
+        #	branch and label are already calculated
+        
+        #	get primary build target meta
+        logger.info(f"Fetching Primary Build Target Meta: {self.primary_build_target}...")
+        primary_target_meta = self.client.get_build_target_meta( self.project_id, self.primary_build_target )
+        logger.info(f"Primary Build Target Meta: {pretty_json(primary_target_meta)}")
+        
+        logger.info(f"Creating new build target({build_target_name}) for branch {self.branch_and_label.branch}...")
 
         # setup new payload copying relevant settings from the primary build target
         payload = {
-            "name": new_target_name,
+            "name": build_target_name,
             "enabled": True,
             "platform": primary_target_meta["platform"],
             "settings": primary_target_meta["settings"],
             "credentials": primary_target_meta["credentials"],
         }
+        
+        #	the branch here is used with git clone --branch XXX
+        #	see get_branch_and_label()
+        payload["settings"]["scm"]["branch"] = self.branch_and_label.branch
 
-        # override payload settings with our PR branch name and remove any applied build schedules.
-        # gr: if branch is refs/pull/XX/[merge|head], this will fail as unity will do git clone -branch refs/pull/6/merge which
-        #		isn't possible. So we need to checkout the commit (or head of PR branch?) instead
-        if self.is_pull_request:
-            payload["settings"]["scm"]["branch"] = self.head_ref
-        else:
-            payload["settings"]["scm"]["branch"] = self.branch_name
+        #	reset some other settings
         payload["settings"]["buildSchedule"] = {}
 
         # make the new build target
         # unity returns 201 when we get a new config
         # 500 -> .error == "Build target name already in use for this project!"
         # means that our generated name already exists, we want to catch & reuse that
+        #	gr: the new version of the code should probably fail here, as we should have already checked if it exists
         success_codes = [201,500]
         new_target_meta = self.client.post_request(f"/projects/{self.project_id}/buildtargets", payload, success_codes )
         
@@ -429,22 +418,18 @@ class UnityCloudBuilder:
             error = new_target_meta["error"]
             if error == "Build target name already in use for this project!":
                 logger.info(f"Build target for this branch already exists: {new_target_name}. Re-using...")
-                return new_target_name
-            raise Exception(f"New target had error: {error}")
-        
-        build_target_id = new_target_meta["buildtargetid"]
-        return build_target_id
+            else:
+                raise Exception(f"New target had error: {error}")
 
-    #@tenacity.retry(
-    #   wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
-    #   stop=tenacity.stop_after_attempt(10),
-    #)
-    def start_build(self, build_target_id: str) -> int:
+        return new_target_meta
+
+    def start_build(self, build_target_name: str) -> int:
         # Kicks off a new build of the project for the correct build target
-        logger.info(f"Creating a build of {self.project_id} on target {build_target_id}...")
-        
-        post_body = {"clean": False, "delay": 0}
-        start_build_url = f"/projects/{self.project_id}/buildtargets/{build_target_id}/builds"
+        clean = False
+        logger.info(f"Creating a build of {self.project_id} on target {build_target_name} (clean={clean})...")
+
+        post_body = {"clean": clean, "delay": 0}
+        start_build_url = f"/projects/{self.project_id}/buildtargets/{build_target_name}/builds"
         orig_build_meta = self.client.post_request( start_build_url, post_body, [202] )
         build_meta = orig_build_meta[0]
         error = build_meta.get("error")
@@ -454,7 +439,7 @@ class UnityCloudBuilder:
         if not "build" in build_meta:
             if not error:
                 error = orig_build_meta
-            raise Exception(f"start_build response has no build number; {error}")
+            raise Exception(f"start_build response has no build number; error={error}")
 
         build_number = build_meta["build"]
         logger.info(f"Build {build_number} created successfully!")
@@ -495,41 +480,6 @@ def download_file_to_workspace(url: str) -> Dict:
 	logger.info(f"Download to {meta['filepath']} successful!")
 	return meta
 
-
-# start a new build and return dictionary with
-#	.build_number ; for monitoring
-#	.build_target_id ; build target id in case a new one was created
-def create_new_build(
-	client: UnityCloudClient,
-	project_id: str,
-	primary_build_target: str,
-	polling_interval: float,
-	github_branch_ref: str,
-	github_head_ref: str,
-	allow_new_target: bool,
-) -> Dict:
-
-	# create unity cloud build client
-	builder: UnityCloudBuilder = UnityCloudBuilder(
-		client,
-		project_id,
-		primary_build_target,
-		github_branch_ref,
-		github_head_ref,
-		allow_new_target
-	)
-
-	# obtain the build target we need to run against
-	# this will create a new target if it doesnt exist
-	build_target_id = builder.get_new_build_target_id()
-	logger.info(f"Acquired Build Target Id: {build_target_id}. Primary Target Id: {primary_build_target}")
-
-	# create a new build for the specified build target
-	build_number = builder.start_build(build_target_id)
-	logger.info(f"Started build number {build_number} on {build_target_id}")
-
-	meta = { "build_number":build_number, "build_target_id":build_target_id}
-	return meta
 
 
 
@@ -604,10 +554,12 @@ def main(
 
     # if the user has provided a project, list it's build targets, otherwise, list em all!
     if project_id:
-        client.list_build_targets( project_id )
+        build_targets = client.list_build_targets( project_id )
+        logger.info(f"Project {project_id} build targets; {pretty_json(build_targets)}")
     else:
         for project in projects:
-            client.list_build_targets( project )
+            build_targets = client.list_build_targets( project )
+            logger.info(f"Project {project} build targets; {pretty_json(build_targets)}")
 
     if not project_id:
         raise Exception(f"No project_id specified, don't know what to build/fetch")
@@ -649,33 +601,27 @@ def main(
 
     # get variables we're eventually going to use
     build_number = None
-    build_target_id = None
     
     # when we have an existing build number, we don't need a lot of the other meta
     # todo: if user supplied build number AND other meta, validate that meta and throw if there's a mismatch
     if existing_build_number != None:
        build_number = existing_build_number
-       build_target_id = build_target_name
-       logger.info(f"Using existing build target/number {build_target_id}/{build_number}...")
+       logger.info(f"Using existing build target/number {build_target_name}/{build_number}...")
        
     else:
-       logger.info(f"Creating new build...")
-       build_meta = create_new_build(
-            client,
-            project_id,
-            primary_build_target,
-            polling_interval,
-            github_branch_ref,
-            github_head_ref,
-            allow_new_target
-            )
-       build_number = build_meta["build_number"]
-       build_target_id = build_meta["build_target_id"]
+       logger.info(f"Get/Create new build target... {build_target_name}")
+       # obtain the build target we need to run against
+       # this will create a new target if it doesnt exist
+       build_meta = builder.get_build_target_meta( allow_new_target )
+       
+       # create a new build for the specified build target
+       build_number = builder.start_build(build_target_name)
+       logger.info(f"Started build number {build_number} on {build_target_name}")
 
     # poll the running build for updates waiting for an polling interval between each poll
     while True:
         # todo: make this function print out erroring logs
-        build_meta = client.get_successfull_build_meta( project_id, build_target_id, build_number )
+        build_meta = client.get_successfull_build_meta( project_id, build_target_name, build_number )
         # build meta is returned once the build succeeds
         if build_meta:
             break
