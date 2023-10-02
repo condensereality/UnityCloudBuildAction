@@ -196,7 +196,6 @@ class UnityCloudBuilder:
         primary_build_target: str,
         github_branch_ref: str,
         github_head_ref: str,
-        github_commit_sha: str,
         allow_new_target: bool,
     ) -> None:
         
@@ -208,7 +207,6 @@ class UnityCloudBuilder:
         # The github_branch_ref is now always required, and will be checked against the default target's configuration
         # new build targets will then be created, for pull requests, new branches, tags etc
         self.branch_ref = github_branch_ref
-        self.commit_sha = github_commit_sha
         self.head_ref = github_head_ref or ""
         
         # need to strip branch name down to what will be passed to git clone --branch XXX in unity cloud build
@@ -410,7 +408,6 @@ def create_new_build(
 	polling_interval: float,
 	github_branch_ref: str,
 	github_head_ref: str,
-	github_commit_sha: str,
 	allow_new_target: bool,
 ) -> Dict:
 
@@ -421,7 +418,6 @@ def create_new_build(
 		primary_build_target,
 		github_branch_ref,
 		github_head_ref,
-		github_commit_sha,
 		allow_new_target
 	)
 
@@ -470,7 +466,7 @@ def create_new_build(
 )
 @click.option("--github_branch_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_BRANCH_REF", type=str)
 @click.option("--github_head_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_HEAD_REF", type=str)
-@click.option("--github_commit_sha", envvar="UNITY_CLOUD_BUILD_GITHUB_COMMIT_SHA", type=str)
+@click.option("--allow_new_target", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_TARGET", type=bool, default=True)
 @click.option("--allow_new_target", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_TARGET", type=str, default=True)
 def main(
     api_key: str,
@@ -481,7 +477,6 @@ def main(
     download_binary: bool,
     github_branch_ref: str,
     github_head_ref: str,
-    github_commit_sha: str,
     create_share: bool,
     existing_build_number: int,
     allow_new_target: bool
@@ -541,7 +536,6 @@ def main(
             polling_interval,
             github_branch_ref,
             github_head_ref,
-            github_commit_sha,
             allow_new_target
             )
         build_number = build_meta["build_number"]
