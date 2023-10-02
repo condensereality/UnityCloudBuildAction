@@ -467,7 +467,6 @@ def create_new_build(
 @click.option("--github_branch_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_BRANCH_REF", type=str)
 @click.option("--github_head_ref", envvar="UNITY_CLOUD_BUILD_GITHUB_HEAD_REF", type=str)
 @click.option("--allow_new_target", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_TARGET", type=bool, default=True)
-@click.option("--allow_new_target", envvar="UNITY_CLOUD_BUILD_ALLOW_NEW_TARGET", type=str, default=True)
 def main(
     api_key: str,
     org_id: str,
