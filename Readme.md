@@ -19,8 +19,16 @@ Use the following commands to extract all the information required from UnityClo
 	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG`
 - Run with `org_id` and `project_id` to get a list of build targets
 	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG --project_id=YourProjectName`
-- Run with `org_id`, `project_id`, `primary_build_target` and `github_branch_ref` to get a list of existing builds (for use with `existing_build_number`)
+- Add `primary_build_target` and `github_branch_ref` to get a list of existing builds (for use with `existing_build_number`)
 	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG --project_id=YourProjectName --primary_build_target=mac --github_branch_ref=refs/tags/v1.2.3 --allow_new_target=false`
+	- This also works with just `main` or `v1.2.3`
+	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG --project_id=YourProjectName --primary_build_target=mac --github_branch_ref=main --allow_new_target=false`
+- Add `existing_build_number` to get meta of an existing build's result
+	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG --project_id=YourProjectName --primary_build_target=mac --github_branch_ref=refs/tags/v1.2.3 --existing_build_number=1`
+- Add `download_binary=true` to go with `existing_build_number` to download the artifact to `$GITHUB_WORKSPACE`
+	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG --project_id=YourProjectName --primary_build_target=mac --github_branch_ref=refs/tags/v1.2.3 --existing_build_number=1 --download_binary=true`
+- Run with `org_id`,`project_id`,`github_branch_ref` to start (and wait for) a new build. This will create a new build target if it doesn't exist
+	- `poetry run python -m action --api_key=YOUR_KEY --org_id=YOUR_ORG --project_id=YourProjectName --github_branch_ref=v1.2.3`
 
 
 Debugging

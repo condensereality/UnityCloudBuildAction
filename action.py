@@ -225,12 +225,9 @@ class UnityCloudClient:
     def get_build_meta(self, project_id: str, build_target_id: str, build_number: int) -> None:
         #	gets the status of the running build, returns None if non-error (timeout)
         logger.info(f"Checking status of build {project_id}/{build_target_id}/{build_number}...")
-        try:
-            data = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_id}/builds/{build_number}")
-            return data
-        except requests.exceptions.Timeout:
-            logger.info(f"get_build_meta() timeout...")
-            return None
+        data = self.send_request(f"/projects/{project_id}/buildtargets/{build_target_id}/builds/{build_number}")
+        return data
+        
         
     def get_successfull_build_meta(self, project_id: str, build_target_id: str, build_number: int) -> None:
         #	get build status of a build, but throw if it's failed
@@ -240,9 +237,7 @@ class UnityCloudClient:
         #	We class "success" as successful
         #	All other statuses, we return no info back (None)
         build_meta = self.get_build_meta( project_id, build_target_id, build_number )
-        # timed out
-        if not build_meta:
-            return None
+
         failed_statuses = ["failure", "canceled", "cancelled", "unknown"]
         success_statuses = ["success"]
         status = build_meta["buildStatus"]
@@ -481,6 +476,54 @@ def download_file_to_workspace(url: str) -> Dict:
 	return meta
 
 
+def is_useful_build_meta_key(key: str):
+	if "InSeconds" in key:
+		return True
+	if "tatus" in key:
+		return True
+
+	return False
+
+def wait_for_successfull_build(client: UnityCloudClient, project_id:str, build_target_name:str, build_number:int, polling_interval:float ):
+	
+	#	gr: reset the timeout count whenever there's a successfull response so we stick around over blips
+	timeout_count = 0
+	max_timeouts_in_a_row = 6
+	
+	while timeout_count < max_timeouts_in_a_row:
+		time.sleep(polling_interval)
+
+		try:
+			build_meta = client.get_build_meta( project_id, build_target_name, build_number )
+			# non-erroring fetch, so reset timeout
+			timeout_count = 0
+
+		# catch timeouts, but anything else should throw
+		except requests.exceptions.Timeout:
+			logger.info(f"Timeout fetching build meta ({timeout_count}/{max_timeouts_in_a_row} tries). Waiting {polling_interval} secs...")
+			timeout_count = timeout_count+1
+			continue
+
+		#	print out useful information!
+		failed_statuses = ["failure", "canceled", "cancelled", "unknown"]
+		success_statuses = ["success"]
+		status = build_meta["buildStatus"]
+
+		useful_meta = {}
+		for key,value in build_meta.items():
+			if is_useful_build_meta_key(key):
+				useful_meta[key] = value
+
+		if status in success_statuses:
+			logger.info(f"Build {project_id}/{build_target_name}/{build_number} completed successfully; {pretty_json(useful_meta)}")
+			return build_meta
+
+		if status in failed_statuses:
+			logger.info(f"Build {status} meta: {pretty_json(build_meta)}")
+			raise Exception(f"Build {project_id}/{build_target_id}/{build_number} failed with status: {status}")
+
+		logger.info(f"Build still running ({status})... {pretty_json(useful_meta)}")
+
 
 
 @click.command()
@@ -492,7 +535,7 @@ def download_file_to_workspace(url: str) -> Dict:
     "--polling_interval",
     envvar="UNITY_CLOUD_BUILD_POLLING_INTERVAL",
     type=float,
-    default=60.0,
+    default=10.0,
 )
 @click.option(
     "--download_binary",
@@ -618,17 +661,9 @@ def main(
        build_number = builder.start_build(build_target_name)
        logger.info(f"Started build number {build_number} on {build_target_name}")
 
-    # poll the running build for updates waiting for an polling interval between each poll
-    while True:
-        # todo: make this function print out erroring logs
-        build_meta = client.get_successfull_build_meta( project_id, build_target_name, build_number )
-        # build meta is returned once the build succeeds
-        if build_meta:
-            break
-        logger.info(f"Timeout/still running status; Waiting {polling_interval} seconds...")
-        time.sleep(polling_interval)
-
-    #logger.info(f"Build completed successfully; {build_meta}")
+    #	poll the running build for updates waiting for an polling interval between each poll
+    #	throws if the build wasn't successfull
+    build_meta = wait_for_successfull_build( client, project_id, build_target_name, build_number, polling_interval )
     
     # Build finished successfully
     if download_binary:
