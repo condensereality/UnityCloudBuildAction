@@ -28,7 +28,7 @@ action then picks up and utilises to make relevant calls to Unity Cloud Build.
 
 ### `unity_cloud_build_api_key`
 - `Required`  
-- The Unity Cloud Build API key. This can be found in the Unity Dashboard, under `Dev Ops`,`Cloud Build`,`Settings` 
+- The Unity Cloud Build API key. This can be found in the Unity Dashboard, under `Dev Ops -> Build Automation -> Settings` 
 - See [https://build-api.cloud.unity3d.com/docs/1.0.0/index.html](https://build-api.cloud.unity3d.com/docs/1.0.0/index.html)
 - Store this API key as a `github action secret` and then use in the github action via `${{ secrets.NAME_OF_YOUR_SECRET }}`
 
@@ -123,7 +123,8 @@ These are also written to `GITHUB_OUTPUT` for use via `needs.job.output` and `st
 Running Action Locally
 ================================
 On Macos;
-- `python3 pip install poetry`
+- ~`python3 pip install poetry`~
+- `pip3 install poetry`
 - `poetry install`
 - `export GITHUB_WORKSPACE=./Workspace`
 - Build main on Android target/configuration
