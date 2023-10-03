@@ -149,7 +149,14 @@ jobs:
     name: Upload to TestFlight (macos)
     needs: Build
     runs-on: ubuntu-22.04 # gr: step doesn't need to run on mac, the action will. Makes this stage non-billable
+    env:
+     ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
     steps:
+      # error if artifact doesn't exist
+      - name: Check Artifact exists
+        uses: xSAVIKx/artifact-exists-action@v0
+        with:
+          name: ${{ env.ARTIFACT_FILENAME }}
       - name: "Download build artifact"
         uses: actions/download-artifact@v2
         with:
@@ -157,8 +164,6 @@ jobs:
 
       - name: "Unzip artifact to .App"
         id: ExtractArtifactApp
-        env:
-         ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}, without do-not-ship files, into UnzippedArtifact/..."
          ls -l ./
