@@ -143,7 +143,7 @@ jobs:
     if: ${{ inputs.UploadToMacosTestFlight }}
     name: Upload to TestFlight (macos)
     needs: Build
-    runs-on: ubuntu-22.04 # gr: step doesn't need to run on mac, the action will. Makes this stage non-billable
+    runs-on: macos-latest # AppleStoreUploadAction must run on macos
     env:
      ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
     steps:
