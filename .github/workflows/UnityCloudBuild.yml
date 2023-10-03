@@ -168,7 +168,7 @@ jobs:
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}, without do-not-ship files, into UnzippedArtifact/..."
          ls -l ./
          # -x excludes patterns when unzipping
-         unzip ${{ env.ARTIFACT_FILENAME }} -d "UnzippedArtifact" -x "*DoNotShip*" -x "*DontShip*"
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "UnzippedArtifact" -x "*DoNotShip*" "*DontShip*"
          echo "Listing ./UnzippedArtifact..."
          ls -l ./UnzippedArtifact
          export AppFilename=$(find . -name *.app)
@@ -295,7 +295,7 @@ jobs:
          [ -z "$ARTIFACT_FILENAME" ] && echo "ARTIFACT_FILENAME env var is empty" && exit 1
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
          ls -l ./
-         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" -x "*DontShip*"
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" "*DontShip*"
          echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
 
       - name: Format Steam Build Description
@@ -334,7 +334,7 @@ jobs:
         run: |
          echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
          ls -l ./
-         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" -x "*DontShip*"
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" "*DontShip*"
          echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
 
 
