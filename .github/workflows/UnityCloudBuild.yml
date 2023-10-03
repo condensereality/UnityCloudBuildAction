@@ -355,7 +355,7 @@ jobs:
    # can we force this to run (always()) AND only if channel is present?
    #if: ${{ inputs.SlackBotChannelId != '' }}
    if: always()
-   needs: [Build,UploadToTestFlight,UploadToOculusReleaseChannel,UploadToUnityGameServerHosting,UploadToSteam]
+   needs: [Build,UploadToTestFlight,UploadToMacosTestFlight,UploadToOculusReleaseChannel,UploadToUnityGameServerHosting,UploadToSteam]
    steps:
     - name: Set SHARE_STRING env
       if: needs.Build.outputs.share_url != ''
@@ -371,6 +371,13 @@ jobs:
        TF_RESULT_STRING: ${{ needs.UploadToTestFlight.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToTestFlight.result }}
       run: |
        echo TESTFLIGHTRESULT_STRING="TestFlight $TF_RESULT_STRING " >> "$GITHUB_ENV"
+
+    - name: Set TESTFLIGHTMACOSRESULT_STRING env
+      if: ${{ inputs.UploadToMacosTestFlight }}
+      env:
+       TF_RESULT_STRING: ${{ needs.UploadToMacosTestFlight.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToMacosTestFlight.result }}
+      run: |
+       echo TESTFLIGHTMACOSRESULT_STRING="Macos TestFlight $TF_RESULT_STRING " >> "$GITHUB_ENV"
 
     - name: Set OCULUSRELEASERESULT_STRING env
       if: ${{ inputs.UploadToOculusReleaseChannel }}
