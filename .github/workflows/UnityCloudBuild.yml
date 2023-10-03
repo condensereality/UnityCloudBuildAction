@@ -37,6 +37,9 @@ on:
      UploadToMacosTestFlight:
        required: false
        type: boolean
+     AppStoreConnect_TeamIdentifier: # required to sign macos
+       required: false
+       type: string
 
      UploadToTestFlight:
        required: false
@@ -176,7 +179,7 @@ jobs:
          [ -z "$AppFilename" ] && echo "Didn't find a .app file; $Filename" && exit 1
          echo "ArtifactFilename=$AppFilename" >> "$GITHUB_OUTPUT"
         
-      - name: "Send to upload action"
+      - name: "Package, sign and upload to TestFlight"
         uses: condensereality/AppleStoreUploadAction@main
         with:
           AppFilename: ${{ steps.ExtractArtifactApp.outputs.ArtifactFilename }}
