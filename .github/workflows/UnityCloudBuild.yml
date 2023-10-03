@@ -2,11 +2,6 @@
 # https://docs.github.com/en/actions/using-workflows/reusing-workflows
 name: Build With Unity Cloud
 
-env:
-  IosBundleId: "xxx" # todo: extract from ipa. altool doesn't seem to need this to be correct
-  IosBundleVersion: 0 # doesnt seem to need this to be correct. altool uses data in the ipa
-  IosBundleShortVersionString: "yyy" # doesnt seem to need this to be correct. altool uses data in the ipa
-
 
 on:
   workflow_call:
@@ -227,7 +222,12 @@ jobs:
          defaults read "$(find $UNZIPPED_PATH -name '*.app')/Info.plist" CFBundleShortVersionString
       
       - name: Upload .ipa to TestFlight
-        run: xcrun altool --upload-app --file ${{ env.ARTIFACT_FILENAME }} --type ios --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
+        env:
+         IosBundleId: "xxx" # todo: extract from ipa. altool doesn't seem to need this to be correct
+         IosBundleVersion: 0 # doesnt seem to need this to be correct. altool uses data in the ipa
+         IosBundleShortVersionString: "yyy" # doesnt seem to need this to be correct. altool uses data in the ipa
+        run: |
+         xcrun altool --upload-app --file ${{ env.ARTIFACT_FILENAME }} --type ios --bundle-id ${{ env.IosBundleId }} --bundle-version ${{ env.IosBundleVersion }} --bundle-short-version-string ${{ env.IosBundleShortVersionString }} --apiKey ${APPSTORECONNECT_AUTH_KEY} --apiIssuer ${APPSTORECONNECT_AUTH_ISSUER}
          
       
   UploadToOculusReleaseChannel:
