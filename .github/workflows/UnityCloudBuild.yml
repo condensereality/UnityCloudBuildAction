@@ -88,7 +88,13 @@ on:
        required: false
      AppStoreConnect_Auth_Issuer:
        required: false
-       
+     AppStoreConnect_SigningCertificate_Base64:
+       required: false
+     AppStoreConnect_SigningCertificate_Password:
+       required: false
+     AppStoreConnect_ProvisioningProfile_Base64:
+       required: false
+
      OculusAppId:
        required: false
      OculusAppSecret:
@@ -182,9 +188,9 @@ jobs:
           AppStoreConnect_Auth_Key: ${{ secrets.AppStoreConnect_Auth_Key }}
           AppStoreConnect_Auth_P8_Base64: ${{ secrets.AppStoreConnect_Auth_P8_Base64 }}
           AppStoreConnect_Auth_Issuer: ${{ secrets.AppStoreConnect_Auth_Issuer }}
-          SigningCertificate_Base64: ${{ secrets.SigningCertificate_Base64 }}
-          SigningCertificate_Password: ${{ secrets.SigningCertificate_Password }}
-          ProvisioningProfile_Base64: ${{ secrets.ProvisioningProfile_Base64 }}
+          SigningCertificate_Base64: ${{ secrets.AppStoreConnect_SigningCertificate_Base64 }}
+          SigningCertificate_Password: ${{ secrets.AppStoreConnect_SigningCertificate_Password }}
+          ProvisioningProfile_Base64: ${{ secrets.AppStoreConnect_ProvisioningProfile_Base64 }}
       
       
   UploadToTestFlight:
