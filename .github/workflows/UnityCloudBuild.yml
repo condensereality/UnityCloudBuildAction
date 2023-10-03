@@ -148,7 +148,7 @@ jobs:
     if: ${{ inputs.UploadToMacosTestFlight }}
     name: Upload to TestFlight (macos)
     needs: Build
-    runs-on: macos-latest # gr: this may not need to run on mac as the action is seperate
+    runs-on: ubuntu-22.04 # gr: step doesn't need to run on mac, the action will. Makes this stage non-billable
     steps:
       - name: "Download build artifact"
         uses: actions/download-artifact@v2
