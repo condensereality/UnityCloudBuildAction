@@ -87,6 +87,9 @@ class BranchAndLabel:
 #		that will be used as the name of the build target
 def get_branch_and_label(branch_ref,head_ref):
 	
+	if not branch_ref:
+		raise Exception(f"get_branch_and_label requires branch_ref (is {branch_ref})")
+
 	# gr: is this redundant, and always true if head_ref != empty?
 	is_pull_request = branch_ref.startswith("refs/pull/")
 
@@ -613,8 +616,11 @@ def main(
     if not primary_build_target:
         raise Exception(f"Missing primary_build_target. required")
 
+
+    # we finish here if no branch, above will have output info
     if not github_branch_ref:
         logger.info(f"No github_branch_ref specified. required to find build target")
+        return
 
 
     # run the branch_refs to config.branch & label functions early to check we're doing it right
