@@ -141,7 +141,13 @@ These are also written to `GITHUB_OUTPUT` for use via `needs.job.output` and `st
 
 Running Action Locally
 ================================
-On Macos;
+- Your `api_key` can be found from UnityCloud's dashboard, `DevOps` `Settings` `Api Settings`
+	- Should be a hexidecimal key
+	- This is different to an Adminstration `Service Account` key.
+- Your `org_id` is a string (spaces get converted to underscores)
+ 
+Run On Macos
+-----------
 - ~`python3 pip install poetry`~
 - `pip3 install poetry`
 - `poetry install`
