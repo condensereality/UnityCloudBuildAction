@@ -184,7 +184,7 @@ jobs:
          echo "ArtifactFilename=$AppFilename" >> "$GITHUB_OUTPUT"
         
       - name: "Package, sign and upload to TestFlight"
-        uses: condensereality/AppleStoreUploadAction@v0.0.1 # gr: bug in main/0.0.2 at the moment finding certificates
+        uses: condensereality/AppleStoreUploadAction@v0.0.4
         with:
           AppFilename: ${{ steps.ExtractArtifactApp.outputs.ArtifactFilename }}
           Upload: false # temporarily dont publish; gr: this is is still uploading!
