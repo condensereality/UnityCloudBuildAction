@@ -61,9 +61,15 @@ on:
      UnityGameServerHosting_Enviroment:
        required: false
        type: string
+     UnityGameServerHosting_EnviromentId:
+       required: false
+       type: string
      UnityGameServerHosting_BuildOsFamily:
        required: false
        type: string # LINUX or WINDOWS
+     UnityGameServerHosting_WithDockerFile:
+       required: false
+       type: string
        
      UploadToSteam:
        required: false
@@ -359,16 +365,62 @@ jobs:
       #Game Server Hosting API Manager
       #Game Server Hosting API Viewer
       #Unity Environments Viewer
-      - name: Upload To new Unity Game Hosting build
-        uses: condensereality/UnityGameHostingAction@main
+      - name: Upload To new Unity Game Hosting File-Build
+        if: ${{ inputs.UnityGameServerHosting_WithDockerFile == '' }}
+        uses: condensereality/UnityGameHostingAction@DockerUgh
         with:
          BuildName: ${{ github.ref }}
+         RemoteBuildVersion: ${{ github.sha }}
          BuildFilesDirectory: ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}
          BuildOsFamily: ${{ inputs.UnityGameServerHosting_BuildOsFamily }}
          Project: ${{ inputs.UnityGameServerHosting_ProjectId }}
          Environment: ${{ inputs.UnityGameServerHosting_Enviroment }}
+         EnvironmentId: ${{ inputs.UnityGameServerHosting_EnviromentId }}
          Key: ${{ secrets.UnityGameServerHosting_Key }}
          Secret: ${{ secrets.UnityGameServerHosting_Secret }}
+      
+      
+      
+      
+      - name: Checkout project for Docker project files
+        if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
+        uses: actions/checkout@v4
+        with:
+         sparse-checkout: ${{ inputs.UnityGameServerHosting_WithDockerFile }} # only folder[s] we need
+
+      
+      - name: Copy files to DockerFile source path
+        if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
+        run: |
+          cd ${{ inputs.UnityGameServerHosting_WithDockerFile }}
+          mkdir ./Game
+          cp -r ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}/** ./Game
+
+      - name: Create Docker Image
+        if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
+        uses: docker/build-push-action@v5
+        with:
+          #file: ${{ inputs.UnityGameServerHosting_WithDockerFile/Dockerfile }}
+          context: ${{ inputs.UnityGameServerHosting_WithDockerFile }} # base folder, containing DockerFile
+          push: false
+          tags: LocalProjectName:latest
+
+      - name: Upload To new Unity Game Hosting Docker-Build
+        if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
+        uses: condensereality/UnityGameHostingAction@DockerUgh
+        with:
+         BuildName: ${{ github.ref }}
+         RemoteBuildVersion: ${{ github.sha }}
+         LocalBuildContainerTag: "LocalProjectName:latest"
+         BuildOsFamily: ${{ inputs.UnityGameServerHosting_BuildOsFamily }}
+         Project: ${{ inputs.UnityGameServerHosting_ProjectId }}
+         Environment: ${{ inputs.UnityGameServerHosting_Enviroment }}
+         EnvironmentId: ${{ inputs.UnityGameServerHosting_EnviromentId }}
+         Key: ${{ secrets.UnityGameServerHosting_Key }}
+         Secret: ${{ secrets.UnityGameServerHosting_Secret }}
+      
+      
+      
       
   ReportToSlack:
    runs-on: ubuntu-22.04
