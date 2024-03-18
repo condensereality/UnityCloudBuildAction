@@ -394,7 +394,7 @@ jobs:
         run: |
           cd ${{ inputs.UnityGameServerHosting_WithDockerFile }}
           mkdir ./Game
-          cp -r ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}/** ./Game
+          cp --recursive ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}/. ./Game/
 
       - name: Create Docker Image
         if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
