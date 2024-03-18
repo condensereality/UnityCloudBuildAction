@@ -403,7 +403,7 @@ jobs:
           #file: ${{ inputs.UnityGameServerHosting_WithDockerFile/Dockerfile }}
           context: ${{ inputs.UnityGameServerHosting_WithDockerFile }} # base folder, containing DockerFile
           push: false
-          tags: LocalProjectName:latest
+          tags: game:latest
 
       - name: Upload To new Unity Game Hosting Docker-Build
         if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
@@ -411,7 +411,7 @@ jobs:
         with:
          BuildName: ${{ github.ref }}
          RemoteBuildVersion: ${{ github.sha }}
-         LocalBuildContainerTag: "LocalProjectName:latest"
+         LocalBuildContainerTag: "game:latest"
          BuildOsFamily: ${{ inputs.UnityGameServerHosting_BuildOsFamily }}
          Project: ${{ inputs.UnityGameServerHosting_ProjectId }}
          Environment: ${{ inputs.UnityGameServerHosting_Enviroment }}
