@@ -344,6 +344,14 @@ jobs:
       ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
 
     steps:
+      # gr; I have a suspicion this checkout later, may have been overwriting our unzipped artifact...
+      - name: Checkout project for Docker project files
+        if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
+        uses: actions/checkout@v4
+        with:
+         sparse-checkout: ${{ inputs.UnityGameServerHosting_WithDockerFile }} # only folder[s] we need
+
+
       - name: Download Build Artifact
         uses: actions/download-artifact@v2
         with:
@@ -382,16 +390,12 @@ jobs:
       
       
       
-      - name: Checkout project for Docker project files
-        if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
-        uses: actions/checkout@v4
-        with:
-         sparse-checkout: ${{ inputs.UnityGameServerHosting_WithDockerFile }} # only folder[s] we need
-
       
       - name: Copy files to DockerFile source path
         if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
         run: |
+          pwd
+          ls -l ./
           mkdir ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
           cp --recursive ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
 
