@@ -396,8 +396,9 @@ jobs:
         run: |
           pwd
           ls -l ./
-          mkdir ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
-          cp --recursive ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
+          #mkdir ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
+          #cp --recursive ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
+          mv ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
           echo "Listing ${{ inputs.UnityGameServerHosting_WithDockerFile }} ..."
           ls -l -R ${{ inputs.UnityGameServerHosting_WithDockerFile }}
 
