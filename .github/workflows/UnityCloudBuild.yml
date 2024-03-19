@@ -344,7 +344,7 @@ jobs:
       ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
 
     steps:
-      # gr; I have a suspicion this checkout later, may have been overwriting our unzipped artifact...
+      # gr; If we do this checkout later, it's overwriting our unzipped artifact...
       - name: Checkout project for Docker project files
         if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
         uses: actions/checkout@v4
@@ -398,6 +398,8 @@ jobs:
           ls -l ./
           mkdir ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
           cp --recursive ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
+          echo "Listing ${{ inputs.UnityGameServerHosting_WithDockerFile }} ..."
+          ls -l -R ${{ inputs.UnityGameServerHosting_WithDockerFile }}
 
       - name: Create Docker Image
         if: ${{ inputs.UnityGameServerHosting_WithDockerFile != '' }}
