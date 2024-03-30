@@ -506,10 +506,14 @@ jobs:
           gcloud auth configure-docker ${{ inputs.UploadToGoogleArtifactRegistry_Region }}-docker.pkg.dev --quiet
 
       # currently use main, or tag, but seperate step as this may be more complicated later
+      # need to be lower case, a-z0-9 (branches can have aaa/bbb/ccc so need to sanitise that
+      # tr -> upper case to lowercase
+      # sed -> regex replace
       - name: Generate Tag Name
         id: GetTagName
         run: |
-          echo "TagName=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          tagname=$(echo "${{ github.ref_name }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+          echo "TagName=$tagname" >> "$GITHUB_OUTPUT"
 
       # generate the final tag for docker->artifact registry
       - name: Generate Artifact Registry Location
