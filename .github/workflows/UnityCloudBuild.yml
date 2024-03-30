@@ -142,7 +142,6 @@ on:
        
      GoogleArtifactRegistry_ServiceAccountKeyJson:
        required: false
-       type: string
 
      SteamConfigVdfBase64: # base64 encoded config.vdf from steamcmd https://github.com/game-ci/steam-deploy (see readme)
        required: false
