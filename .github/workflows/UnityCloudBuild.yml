@@ -488,17 +488,6 @@ jobs:
           mv ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }}/Game
           echo "Listing ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }} ..."
           ls -l -R ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }}
-      
-      # gr: we can move this node setup to the dockerfile (RUN npm install etc)
-      - name: Configure Node
-        uses: actions/setup-node@v1
-        with:
-          registry-url: https://npm.pkg.github.com/
-          node-version: 21
-
-      - name: Install Github Packages
-        working-directory: ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }}
-        run: npm ci
 
       - name: Authorise GoogleCloud
         id: googlecloudauth
