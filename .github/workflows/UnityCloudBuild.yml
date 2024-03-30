@@ -493,7 +493,7 @@ jobs:
         id: googlecloudauth
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: "${{ secrets.GOOGLECLOUD_SERVICE_ACCOUNT_KEY }}"
+          credentials_json: "${{ secrets.GoogleArtifactRegistry_ServiceAccountKeyJson }}"
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
