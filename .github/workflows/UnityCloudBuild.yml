@@ -526,7 +526,7 @@ jobs:
       - name: Generate Artifact Registry Location
         id: GetImageTag
         run: |
-          echo "ImageTag=${{ inputs.UploadToGoogleArtifactRegistry_Region }}-docker.pkg.dev/${{ inputs.UploadToGoogleArtifactRegistry_Project }}/${{ input.UploadToGoogleArtifactRegistry_Repository }}/${{ inputs.UploadToGoogleArtifactRegistry_ImageName}}:${{ steps.GetTagName.outputs.TagName }}" >> "$GITHUB_OUTPUT"
+          echo "ImageTag=${{ inputs.UploadToGoogleArtifactRegistry_Region }}-docker.pkg.dev/${{ inputs.UploadToGoogleArtifactRegistry_Project }}/${{ inputs.UploadToGoogleArtifactRegistry_Repository }}/${{ inputs.UploadToGoogleArtifactRegistry_ImageName}}:${{ steps.GetTagName.outputs.TagName }}" >> "$GITHUB_OUTPUT"
 
       - name: Build image
         run: docker build ./${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }} --tag ${{ steps.GetImageTag.outputs.ImageTag }}
