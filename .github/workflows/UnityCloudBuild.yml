@@ -545,7 +545,7 @@ jobs:
    # can we force this to run (always()) AND only if channel is present?
    #if: ${{ inputs.SlackBotChannelId != '' }}
    if: always()
-   needs: [Build,UploadToTestFlight,UploadToMacosTestFlight,UploadToOculusReleaseChannel,UploadToUnityGameServerHosting,UploadToSteam]
+   needs: [Build,UploadToTestFlight,UploadToMacosTestFlight,UploadToOculusReleaseChannel,UploadToUnityGameServerHosting,UploadToGoogleArtifactRegistry,UploadToSteam]
    steps:
     - name: Set SHARE_STRING env
       if: needs.Build.outputs.share_url != ''
@@ -582,6 +582,13 @@ jobs:
        UGS_RESULT_STRING: ${{ needs.UploadToUnityGameServerHosting.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToUnityGameServerHosting.result }}
       run: |
        echo UNITYGAMEHOSTINGUPLOADRESULT_STRING="UnityGameHosting $UGS_RESULT_STRING " >> "$GITHUB_ENV"
+  
+    - name: Set GOOGLEARTIFACTREGISTRYUPLOADRESULT_STRING env
+      if: ${{ inputs.UploadToGoogleArtifactRegistry }}
+      env:
+       UGS_RESULT_STRING: ${{ needs.UploadToGoogleArtifactRegistry.result == 'success' && ':green_heart:' || ':x:' }} ${{ needs.UploadToGoogleArtifactRegistry.result }}
+      run: |
+       echo GOOGLEARTIFACTREGISTRYUPLOADRESULT_STRING="Google Artifact Registry $UGS_RESULT_STRING " >> "$GITHUB_ENV"
   
     - name: Set UPLOADTOSTEAM_RESULT_STRING env
       if: ${{ inputs.UploadToSteam }}
