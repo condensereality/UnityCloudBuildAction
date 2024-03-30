@@ -67,10 +67,32 @@ on:
      UnityGameServerHosting_BuildOsFamily:
        required: false
        type: string # LINUX or WINDOWS
-     UnityGameServerHosting_WithDockerFile:
+     UnityGameServerHosting_WithDockerFile: # this is the folder with DockerFile inside
        required: false
        type: string
        
+       
+       
+     UploadToGoogleArtifactRegistry:
+       required: false
+       type: boolean
+     UploadToGoogleArtifactRegistry_Region:
+       required: false
+       type: string
+     UploadToGoogleArtifactRegistry_Project:
+       required: false
+       type: string
+     UploadToGoogleArtifactRegistry_Repository:
+       required: false
+       type: string
+     UploadToGoogleArtifactRegistry_ImageName:
+       required: false
+       type: string
+     UploadToGoogleArtifactRegistry_DockerFile: # this is the folder with DockerFile inside
+       required: false
+       type: string
+
+
      UploadToSteam:
        required: false
        type: boolean
@@ -118,6 +140,10 @@ on:
      UnityGameServerHosting_Secret:
        required: false
        
+     GoogleArtifactRegistry_ServiceAccountKeyJson:
+       required: false
+       type: string
+
      SteamConfigVdfBase64: # base64 encoded config.vdf from steamcmd https://github.com/game-ci/steam-deploy (see readme)
        required: false
 
@@ -140,7 +166,7 @@ jobs:
        unity_cloud_build_project_id: ${{ inputs.UnityCloudProject }}
        unity_cloud_build_polling_interval: 60
        unity_cloud_build_primary_target: ${{ inputs.UnityCloudBuildTarget }}
-       unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToMacosTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToSteam }}
+       unity_cloud_build_download_binary: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToMacosTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToGoogleArtifactRegistry || inputs.UploadToSteam }}
        unity_cloud_build_create_share: ${{ inputs.ReportShareUrl }}
        # github.ref is the fully formed ref, eg refs/pull/6/merge or refs/tag/v0.1.2
        # github.head_ref is present in pull requests, and is the SOURCE branch (eg. YourFeatureBranch)
@@ -151,7 +177,7 @@ jobs:
        unity_cloud_build_use_existing_build_number: ${{ inputs.UnityCloudExistingBuildNumber }}
     
     - name: Store binary as artifact
-      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToMacosTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToSteam }}
+      if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToMacosTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToGoogleArtifactRegistry || inputs.UploadToSteam }}
       uses: actions/upload-artifact@v2
       with:
         name: ${{ steps.build.outputs.ARTIFACT_FILENAME }}
@@ -335,6 +361,7 @@ jobs:
           depot1Path: ${{ steps.UnzipArtifacts.outputs.ArtifactPath }}
           releaseBranch: ${{ inputs.SteamBranch }}
 
+
   UploadToUnityGameServerHosting:
     if: ${{ inputs.UploadToUnityGameServerHosting }}
     name: Upload to UnityGameServerHosting
@@ -426,7 +453,93 @@ jobs:
          Secret: ${{ secrets.UnityGameServerHosting_Secret }}
       
       
+  # todo: merge this with UnityGameServerHosting upload, as they both generate a docker image, but that's local to the JOB (and can't be made into an artifact? or will be wasteful...)
+  UploadToGoogleArtifactRegistry:
+    if: ${{ inputs.UploadToGoogleArtifactRegistry }}
+    runs-on: ubuntu-latest # will also run on macos-latest
+    needs: Build
+    env:
+      ARTIFACT_FILENAME: ${{ needs.Build.outputs.artifact_filename }}
+
+    steps:
+      # gr; If we do this checkout later, it's overwriting our unzipped artifact...
+      - name: Checkout project for Docker project files
+        uses: actions/checkout@v4
+        with:
+         sparse-checkout: ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }} # only folder[s] we need
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.ARTIFACT_FILENAME }}
+          
+      # -x excludes patterns when unzipping
+      - name: Unzip Artifact
+        id: UnzipArtifacts
+        run: |
+         echo "Unzipping artifact; ${{ env.ARTIFACT_FILENAME }}..."
+         ls -l ./
+         unzip ${{ env.ARTIFACT_FILENAME }} -d "BuildFiles" -x "*DoNotShip*" "*DontShip*"
+         echo ArtifactPath="BuildFiles" >> "$GITHUB_OUTPUT"
+
+      - name: Copy files to DockerFile source path
+        run: |
+          pwd
+          ls -l ./
+          mv ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
+          echo "Listing ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }} ..."
+          ls -l -R ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }}
       
+      # gr: we can move this node setup to the dockerfile (RUN npm install etc)
+      - name: Configure Node
+        uses: actions/setup-node@v1
+        with:
+          registry-url: https://npm.pkg.github.com/
+          node-version: 21
+
+      - name: Install Github Packages
+        working-directory: ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }}
+        run: npm ci
+
+      - name: Authorise GoogleCloud
+        id: googlecloudauth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: "${{ secrets.GOOGLECLOUD_SERVICE_ACCOUNT_KEY }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        
+      - name: Check gcloud CLI
+        run: gcloud info
+
+      - name: Authorise Docker to GoogleCloud
+        run: |
+          gcloud auth configure-docker ${{ inputs.UploadToGoogleArtifactRegistry_Region }}-docker.pkg.dev --quiet
+
+      # currently use main, or tag, but seperate step as this may be more complicated later
+      - name: Generate Tag Name
+        id: GetTagName
+        run: |
+          echo "TagName=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      # generate the final tag for docker->artifact registry
+      - name: Generate Artifact Registry Location
+        id: GetImageTag
+        run: |
+          echo "ImageTag=${{ inputs.UploadToGoogleArtifactRegistry_Region }}-docker.pkg.dev/${{ inputs.UploadToGoogleArtifactRegistry_Project }}/${{ input.UploadToGoogleArtifactRegistry_Repository }}/${{ inputs.UploadToGoogleArtifactRegistry_ImageName}}:${{ steps.GetTagName.outputs.TagName }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        run: docker build ./${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }} --tag ${{ steps.GetImageTag.outputs.ImageTag }}
+        #working-directory: WORKING_DIRECTORY
+
+      - name: Push image
+        #if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: docker push ${{ steps.GetImageTag.outputs.ImageTag }}
+      
+
+
+
       
   ReportToSlack:
    runs-on: ubuntu-22.04
