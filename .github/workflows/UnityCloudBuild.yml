@@ -485,7 +485,7 @@ jobs:
         run: |
           pwd
           ls -l ./
-          mv ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UnityGameServerHosting_WithDockerFile }}/Game
+          mv ${{ steps.UnzipArtifacts.outputs.ArtifactPath }} ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }}/Game
           echo "Listing ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }} ..."
           ls -l -R ${{ inputs.UploadToGoogleArtifactRegistry_DockerFile }}
       
