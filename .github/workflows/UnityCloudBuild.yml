@@ -152,7 +152,7 @@ jobs:
     
     - name: Store binary as artifact
       if: ${{ inputs.DownloadBinaryToArtifact || inputs.UploadToTestFlight || inputs.UploadToMacosTestFlight || inputs.UploadToOculusReleaseChannel || inputs.UploadToUnityGameServerHosting || inputs.UploadToSteam }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.build.outputs.ARTIFACT_FILENAME }}
         path: ${{ steps.build.outputs.ARTIFACT_FILEPATH }}
@@ -172,7 +172,7 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
       - name: "Download build artifact"
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
 
@@ -221,7 +221,7 @@ jobs:
       
     steps:
       - name: Download Build Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
           
@@ -266,7 +266,7 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
       - name: Download Build Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
       
@@ -305,7 +305,7 @@ jobs:
 
     steps:
       - name: Download Build Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
           
@@ -353,7 +353,7 @@ jobs:
 
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ${{ env.ARTIFACT_FILENAME }}
           
